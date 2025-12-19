@@ -12,13 +12,13 @@ export async function GET(request: Request) {
   }
 
   // Active RPC Count (from latest snapshots)
-  // We need to get the latest snapshot for each node to check if RPC is active.
-  // Again, fetching recent snapshots is the approximation.
-  const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+  // Since cron may run daily (Hobby plan), fetch snapshots from last 25 hours
+  const twentyFiveHoursAgo = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
   const { data: recentSnapshots } = await supabase
     .from('snapshots')
     .select('rpc_active, storage_used, node_pubkey')
-    .gt('created_at', fifteenMinutesAgo);
+    .gt('created_at', twentyFiveHoursAgo)
+    .order('created_at', { ascending: false });
 
   // Deduplicate to get latest per node
   const latestSnapshotsMap = new Map();

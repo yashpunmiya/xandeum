@@ -13,14 +13,17 @@ L.Icon.Default.mergeOptions({
 });
 
 export default function Map({ nodes }: { nodes: Node[] }) {
+  // Ensure nodes is always an array
+  const safeNodes = Array.isArray(nodes) ? nodes.filter(Boolean) : [];
+
   return (
     <MapContainer center={[20, 0]} zoom={2} style={{ height: '100%', width: '100%' }} className="rounded-lg border border-border">
       <TileLayer
         url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
       />
-      {nodes.map((node) => (
-        node.latitude && node.longitude ? (
+      {safeNodes.map((node) => (
+        node && node.latitude && node.longitude ? (
           <Marker key={node.pubkey} position={[node.latitude, node.longitude]}>
             <Popup>
               <div className="text-black">

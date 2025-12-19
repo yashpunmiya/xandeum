@@ -23,7 +23,10 @@ export default function NodesTable({ nodes }: { nodes: any[] }) {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
 
-  const sortedNodes = [...nodes].sort((a, b) => {
+  // Ensure nodes is always an array
+  const safeNodes = Array.isArray(nodes) ? nodes.filter(Boolean) : [];
+
+  const sortedNodes = [...safeNodes].sort((a, b) => {
     let valA = a.stats?.[sort];
     let valB = b.stats?.[sort];
 
@@ -70,10 +73,13 @@ export default function NodesTable({ nodes }: { nodes: any[] }) {
   };
 
   const formatTimeAgo = (dateString: string) => {
+    if (!dateString) return '-';
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '-';
     const now = new Date();
     const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
     
+    if (seconds < 0) return '-';
     if (seconds < 60) return `${seconds}s`;
     const minutes = Math.floor(seconds / 60);
     if (minutes < 60) return `${minutes}m`;
@@ -81,6 +87,15 @@ export default function NodesTable({ nodes }: { nodes: any[] }) {
     if (hours < 24) return `${hours}h`;
     return `${Math.floor(hours / 24)}d`;
   };
+
+  // Show message if no nodes
+  if (safeNodes.length === 0) {
+    return (
+      <div className="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">
+        No nodes found. Click &quot;Refresh Data&quot; to fetch the latest nodes from the network.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -185,30 +200,32 @@ export default function NodesTable({ nodes }: { nodes: any[] }) {
       </div>
 
       {/* Pagination Controls */}
-      <div className="flex items-center justify-between px-2">
-        <div className="text-sm text-muted-foreground">
-          Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, sortedNodes.length)} of {sortedNodes.length} nodes
+      {totalPages > 0 && (
+        <div className="flex items-center justify-between px-2">
+          <div className="text-sm text-muted-foreground">
+            Showing {Math.min((currentPage - 1) * itemsPerPage + 1, sortedNodes.length)} to {Math.min(currentPage * itemsPerPage, sortedNodes.length)} of {sortedNodes.length} nodes
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="p-2 rounded-md hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-sm font-medium">
+              Page {currentPage} of {totalPages || 1}
+            </span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages || 1, p + 1))}
+              disabled={currentPage === totalPages || totalPages === 0}
+              className="p-2 rounded-md hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="p-2 rounded-md hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <span className="text-sm font-medium">
-            Page {currentPage} of {totalPages}
-          </span>
-          <button
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="p-2 rounded-md hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

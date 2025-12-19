@@ -21,18 +21,14 @@ export async function GET(request: Request) {
   }
 
   // Fetch latest snapshots for these nodes
-  // Optimization: We only need the latest snapshot for each node.
-  // We can fetch snapshots created in the last 24 hours (or just last run window)
-  // But to be safe, let's fetch the latest snapshot for each node.
-  // Since we can't easily do "latest per group" in Supabase JS client without a view,
-  // we will fetch the most recent snapshots globally and map them.
-  // Assuming the cron runs every 10 mins, we can fetch snapshots from last 15 mins.
+  // Since cron may run daily (Hobby plan), we fetch snapshots from last 25 hours
+  // to ensure we always get the latest data.
   
-  const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+  const twentyFiveHoursAgo = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
   const { data: snapshots } = await supabase
     .from('snapshots')
     .select('*')
-    .gt('created_at', fifteenMinutesAgo)
+    .gt('created_at', twentyFiveHoursAgo)
     .order('created_at', { ascending: false });
 
   // Map latest snapshot to node
