@@ -123,8 +123,15 @@ export default function NodesTable({ nodes }: { nodes: any[] }) {
           </thead>
           <tbody>
             {paginatedNodes.map((node, index) => {
+              if (!node) return null;
               const globalIndex = (currentPage - 1) * itemsPerPage + index + 1;
               const stats = node.stats || {};
+              
+              // Debugging
+              if (stats.cpu_percent === null && node.stats) {
+                 // console.log('Node with null cpu_percent:', node);
+              }
+
               const cpu = stats.cpu_percent;
               const ramUsed = stats.ram_used;
               const ramTotal = stats.ram_total;
