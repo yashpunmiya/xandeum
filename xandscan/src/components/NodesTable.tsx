@@ -146,7 +146,7 @@ export default function NodesTable({ nodes }: { nodes: any[] }) {
                     </div>
                   </td>
                   <td className="p-3 text-xs">{node.stats?.version || '-'}</td>
-                  <td className="p-3 text-xs">{node.stats?.cpu_percent !== null ? `${node.stats.cpu_percent}%` : '-'}</td>
+                  <td className="p-3 text-xs">{node.stats?.cpu_percent != null ? `${node.stats.cpu_percent}%` : '-'}</td>
                   <td className="p-3 text-xs">
                     {node.stats?.ram_used ? (
                       <span title={`${formatBytes(node.stats.ram_used)} / ${formatBytes(node.stats.ram_total)}`}>
