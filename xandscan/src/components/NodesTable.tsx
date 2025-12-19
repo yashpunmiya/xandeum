@@ -124,6 +124,15 @@ export default function NodesTable({ nodes }: { nodes: any[] }) {
           <tbody>
             {paginatedNodes.map((node, index) => {
               const globalIndex = (currentPage - 1) * itemsPerPage + index + 1;
+              const stats = node.stats || {};
+              const cpu = stats.cpu_percent;
+              const ramUsed = stats.ram_used;
+              const ramTotal = stats.ram_total;
+              const storage = stats.storage_used;
+              const credits = stats.credits;
+              const score = stats.total_score;
+              const version = stats.version;
+
               return (
                 <tr key={node.pubkey} className="border-t border-border hover:bg-muted/50 transition-colors">
                   <td className="p-3 text-center text-muted-foreground">{globalIndex}</td>
@@ -145,21 +154,21 @@ export default function NodesTable({ nodes }: { nodes: any[] }) {
                       <span className="truncate max-w-[100px]" title={node.city}>{node.country}</span>
                     </div>
                   </td>
-                  <td className="p-3 text-xs">{node.stats?.version || '-'}</td>
-                  <td className="p-3 text-xs">{node.stats?.cpu_percent != null ? `${node.stats.cpu_percent}%` : '-'}</td>
+                  <td className="p-3 text-xs">{version || '-'}</td>
+                  <td className="p-3 text-xs">{typeof cpu === 'number' ? `${cpu}%` : '-'}</td>
                   <td className="p-3 text-xs">
-                    {node.stats?.ram_used ? (
-                      <span title={`${formatBytes(node.stats.ram_used)} / ${formatBytes(node.stats.ram_total)}`}>
-                        {Math.round((node.stats.ram_used / node.stats.ram_total) * 100)}%
+                    {ramUsed && ramTotal ? (
+                      <span title={`${formatBytes(ramUsed)} / ${formatBytes(ramTotal)}`}>
+                        {Math.round((ramUsed / ramTotal) * 100)}%
                       </span>
                     ) : '-'}
                   </td>
-                  <td className="p-3 text-xs">{node.stats?.storage_used ? formatBytes(node.stats.storage_used) : '-'}</td>
+                  <td className="p-3 text-xs">{storage ? formatBytes(storage) : '-'}</td>
                   {/* <td className="p-3 text-xs">-</td> */}
-                  <td className="p-3 text-xs">{node.stats?.credits?.toLocaleString() || 0}</td>
+                  <td className="p-3 text-xs">{credits?.toLocaleString() || 0}</td>
                   <td className="p-3 text-xs text-muted-foreground">{formatTimeAgo(node.last_seen_at)}</td>
                   <td className="p-3 text-right font-bold text-primary">
-                    {node.stats?.total_score?.toFixed(1) || '0.0'}
+                    {score?.toFixed(1) || '0.0'}
                   </td>
                 </tr>
               );
