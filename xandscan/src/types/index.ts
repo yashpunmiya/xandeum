@@ -11,6 +11,7 @@ export interface Node {
   first_seen_at: string;
   last_seen_at: string;
   is_active: boolean;
+  stats?: Partial<Snapshot>;
 }
 
 export interface Snapshot {
@@ -25,6 +26,7 @@ export interface Snapshot {
   ram_total: number | null;
   uptime_seconds: number | null;
   storage_used: number | null;
+  storage_total?: number | null;
   total_score: number;
 }
 
