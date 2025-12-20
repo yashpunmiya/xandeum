@@ -2,11 +2,12 @@
 
 import { motion } from 'framer-motion';
 import { Node } from '@/types';
-import { Cpu, HardDrive, Zap, MapPin, Globe, Server, Activity, Coins, Eye, Trophy, MemoryStick, Clock } from 'lucide-react';
+import { Cpu, HardDrive, Zap, MapPin, Globe, Server, Activity, Coins, Eye, Trophy, MemoryStick, Clock, Check } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo } from 'react';
+import { cn } from '../lib/utils';
 
-export default function NodeCard({ node, index }: { node: Node; index: number }) {
+export default function NodeCard({ node, index, isSelected, isSelectionMode, onToggleSelect }: { node: Node; index: number; isSelected?: boolean; isSelectionMode?: boolean; onToggleSelect?: () => void }) {
     const stats = node.stats || {};
 
     // Formatters
@@ -31,6 +32,21 @@ export default function NodeCard({ node, index }: { node: Node; index: number })
         return parts.length > 0 ? parts.join(' ') : `${seconds}s`;
     };
 
+    const formatTimeAgo = (dateString: string) => {
+        if (!dateString) return '-';
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return '-';
+        const now = new Date();
+        const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+        if (seconds < 60) return 'Just now';
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return `${minutes}m ago`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `${hours}h ago`;
+        const days = Math.floor(hours / 24);
+        return `${days}d ago`;
+    };
+
     // Hash pubkey to get a consistent gradient/color accent
     const accentColor = useMemo(() => {
         const sum = node.pubkey.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
@@ -44,10 +60,20 @@ export default function NodeCard({ node, index }: { node: Node; index: number })
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: index * 0.05 }}
             whileHover={{ y: -4, transition: { duration: 0.2 } }}
-            className="group relative overflow-hidden rounded-md border border-white/5 bg-[#0a0a0a] hover:bg-[#0f0f0f] transition-colors"
+            className={`group relative overflow-hidden rounded-md border text-left transition-all ${isSelected ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20' : 'border-white/5 bg-[#0a0a0a] hover:bg-[#0f0f0f]'}`}
         >
             {/* Top Accent Line */}
             <div className={`absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r ${accentColor} to-transparent opacity-70 group-hover:opacity-100 transition-opacity`} />
+
+            {/* Selection Checkbox (Visible on hover or selected or in selection mode) */}
+            {onToggleSelect && (
+                <button
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleSelect(); }}
+                    className={`absolute top-2 right-2 z-40 h-5 w-5 rounded border flex items-center justify-center transition-all ${isSelected || isSelectionMode ? 'bg-primary border-primary opacity-100' : 'bg-black/50 border-white/20 opacity-0 group-hover:opacity-100'}`}
+                >
+                    {isSelected && <Check size={12} className="text-black font-bold" strokeWidth={4} />}
+                </button>
+            )}
 
             <div className="p-4 flex flex-col gap-4">
 
@@ -106,17 +132,30 @@ export default function NodeCard({ node, index }: { node: Node; index: number })
                     </div>
                 </div>
 
-                {/* Footer */}
-                <div className="flex items-center justify-end border-t border-white/5 pt-2">
+                {/* Footer: Last Seen & Score */}
+                <div className="flex items-center justify-between border-t border-white/5 pt-2 mt-auto">
+                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <Eye size={10} />
+                        <span>Seen {formatTimeAgo(node.last_seen_at)}</span>
+                    </div>
+
                     <div className="flex items-center gap-1.5 bg-primary/10 px-2 py-0.5 rounded text-primary border border-primary/20">
-                        <Trophy size={12} />
+                        <Trophy size={10} />
                         <span className="text-xs font-bold font-mono">{stats.total_score?.toFixed(0)}</span>
                     </div>
                 </div>
 
             </div>
 
-            <Link href={`/node/${node.pubkey}`} className="absolute inset-0 z-30 focus:outline-none focus:ring-1 focus:ring-primary/50" />
+            {/* Hover Reveal Button */}
+            <div className="absolute inset-0 z-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 backdrop-blur-[2px] pointer-events-none">
+                <div className="px-4 py-2 bg-primary text-black font-bold text-xs rounded-full transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 shadow-[0_0_20px_rgba(34,197,94,0.5)]">
+                    VIEW DETAILS
+                </div>
+            </div>
+
+            {/* Click to details - lowered Z to be below checkbox but above content */}
+            <Link href={`/node/${node.pubkey}`} className="absolute inset-0 z-10 focus:outline-none" />
         </motion.div>
     );
 }

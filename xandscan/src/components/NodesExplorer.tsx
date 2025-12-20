@@ -9,9 +9,12 @@ import {
     ChevronLeft,
     ChevronRight,
     ArrowUpDown,
-    Check
+    Check,
+    Scale,
+    X
 } from 'lucide-react';
 import NodeCard from './NodeCard';
+import CompareModal from './CompareModal';
 import { twMerge } from 'tailwind-merge';
 import { clsx } from 'clsx';
 import { Node } from '@/types';
@@ -47,7 +50,12 @@ export default function NodesExplorer({ nodes }: { nodes: Node[] }) {
     const [order, setOrder] = useState<'asc' | 'desc'>('desc');
     const [currentPage, setCurrentPage] = useState(1);
 
-    const itemsPerPage = viewMode === 'grid' ? 12 : 20; // 3 rows of 4 or similar
+    // Comparison State
+    const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
+    const [isCompareOpen, setIsCompareOpen] = useState(false);
+    const [isSelectionMode, setIsSelectionMode] = useState(false);
+
+    const itemsPerPage = viewMode === 'grid' ? 12 : 20;
     const safeNodes = Array.isArray(nodes) ? nodes.filter(Boolean) : [];
 
     // Filter Logic
@@ -57,6 +65,21 @@ export default function NodesExplorer({ nodes }: { nodes: Node[] }) {
         node.ip_address?.includes(searchTerm) ||
         node.stats?.version?.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    // Auto-enable selection mode if user starts selecting
+    const toggleSelection = (pubkey: string) => {
+        if (!isSelectionMode) setIsSelectionMode(true);
+
+        if (selectedNodes.includes(pubkey)) {
+            setSelectedNodes(prev => prev.filter(id => id !== pubkey));
+        } else {
+            if (selectedNodes.length >= 4) {
+                // Optional: Show toast or visual feedback that max is 4
+                return;
+            }
+            setSelectedNodes(prev => [...prev, pubkey]);
+        }
+    };
 
     // Sort Logic
     const sortedNodes = [...filteredNodes].sort((a, b) => {
@@ -71,19 +94,16 @@ export default function NodesExplorer({ nodes }: { nodes: Node[] }) {
         if (valA === undefined) valA = 0;
         if (valB === undefined) valB = 0;
 
-        // String comparison
         if (typeof valA === 'string' && typeof valB === 'string') {
             return order === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
         }
 
-        // Date handling
         if (sort === 'last_seen_at') {
             const dateA = new Date(valA).getTime();
             const dateB = new Date(valB).getTime();
             return order === 'asc' ? dateA - dateB : dateB - dateA;
         }
 
-        // Numeric comparison
         return order === 'asc' ? (valA as number) - (valB as number) : (valB as number) - (valA as number);
     });
 
@@ -102,7 +122,6 @@ export default function NodesExplorer({ nodes }: { nodes: Node[] }) {
         }
     };
 
-    // Sort Options List
     const sortOptions = [
         { key: 'total_score', label: 'Score' },
         { key: 'version', label: 'Version' },
@@ -125,8 +144,20 @@ export default function NodesExplorer({ nodes }: { nodes: Node[] }) {
         return d > 0 ? `${d}d` : `${Math.floor(seconds / 3600)}h`;
     };
 
+
+
+    const getSelectedNodeObjects = () => {
+        return safeNodes.filter(n => selectedNodes.includes(n.pubkey));
+    };
+
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 relative">
+            <CompareModal
+                isOpen={isCompareOpen}
+                onClose={() => setIsCompareOpen(false)}
+                nodes={getSelectedNodeObjects()}
+            />
+
             {/* Toolbar */}
             <div className="flex flex-col gap-4 rounded-xl border border-white/10 bg-[#0a0a0a] p-4 md:flex-row md:items-center md:justify-between shadow-2xl">
                 <div className="relative flex-1 max-w-sm">
@@ -140,8 +171,21 @@ export default function NodesExplorer({ nodes }: { nodes: Node[] }) {
                     />
                 </div>
 
-                {/* Sorting & View Toggle */}
                 <div className="flex flex-wrap items-center gap-2">
+                    {/* Compare Toggle */}
+                    <button
+                        onClick={() => setIsSelectionMode(!isSelectionMode)}
+                        className={cn(
+                            "flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-bold transition-all shadow-sm mr-2",
+                            isSelectionMode || selectedNodes.length > 0
+                                ? "bg-primary text-black border-primary shadow-[0_0_10px_rgba(34,197,94,0.4)]"
+                                : "bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10 hover:text-white"
+                        )}
+                    >
+                        <Scale size={16} />
+                        {isSelectionMode ? 'Done' : 'Compare Nodes'}
+                    </button>
+
                     <span className="text-xs text-muted-foreground font-medium mr-1 hidden lg:block">Sort by:</span>
                     {sortOptions.map(opt => (
                         <SortOption
@@ -188,10 +232,17 @@ export default function NodesExplorer({ nodes }: { nodes: Node[] }) {
                     <motion.div
                         key="grid"
                         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3" // Strictly 3 columns on large screens
+                        className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
                     >
                         {paginatedNodes.map((node, i) => (
-                            <NodeCard key={node.pubkey} node={node} index={i} />
+                            <NodeCard
+                                key={node.pubkey}
+                                node={node}
+                                index={i}
+                                isSelected={selectedNodes.includes(node.pubkey)}
+                                isSelectionMode={isSelectionMode}
+                                onToggleSelect={() => toggleSelection(node.pubkey)}
+                            />
                         ))}
                     </motion.div>
                 ) : (
@@ -203,6 +254,7 @@ export default function NodesExplorer({ nodes }: { nodes: Node[] }) {
                         <table className="w-full text-left text-sm min-w-[900px]">
                             <thead className="bg-white/5 text-xs uppercase tracking-wider text-muted-foreground font-medium border-b border-white/5">
                                 <tr>
+                                    <th className="p-4 w-10"></th> {/* Checkbox col */}
                                     <th className="p-4 cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('pubkey')}>Node</th>
                                     <th className="p-4 cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('country')}>Location</th>
                                     <th className="p-4 cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('version')}>Version</th>
@@ -215,7 +267,15 @@ export default function NodesExplorer({ nodes }: { nodes: Node[] }) {
                             </thead>
                             <tbody className="divide-y divide-white/5">
                                 {paginatedNodes.map((node, i) => (
-                                    <tr key={node.pubkey} className="group hover:bg-white/5 transition-colors">
+                                    <tr key={node.pubkey} className={cn("group transition-colors", selectedNodes.includes(node.pubkey) ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-white/5")}>
+                                        <td className="p-4">
+                                            <button
+                                                onClick={() => toggleSelection(node.pubkey)}
+                                                className={cn("h-4 w-4 rounded border flex items-center justify-center transition-colors", selectedNodes.includes(node.pubkey) ? "bg-primary border-primary text-black" : "border-white/20 hover:border-primary")}
+                                            >
+                                                {selectedNodes.includes(node.pubkey) && <Check size={10} strokeWidth={4} />}
+                                            </button>
+                                        </td>
                                         <td className="p-4">
                                             <div className="font-mono font-medium text-foreground text-sm group-hover:text-primary transition-colors truncate w-32">
                                                 {node.pubkey}
@@ -246,6 +306,37 @@ export default function NodesExplorer({ nodes }: { nodes: Node[] }) {
                                 ))}
                             </tbody>
                         </table>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Compare Floating Bar */}
+            <AnimatePresence>
+                {selectedNodes.length > 0 && (
+                    <motion.div
+                        initial={{ y: 100, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: 100, opacity: 0 }}
+                        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-black/80 backdrop-blur-md rounded-full border border-primary/20 p-2 pl-6 pr-2 flex items-center gap-6 shadow-[0_0_30px_rgba(0,0,0,0.5)]"
+                    >
+                        <div className="flex items-center gap-3">
+                            <span className="text-sm font-medium text-white">
+                                <span className="text-primary font-bold">{selectedNodes.length}</span> nodes selected
+                            </span>
+                            <div className="h-4 w-px bg-white/10" />
+                            <button
+                                onClick={() => setSelectedNodes([])}
+                                className="text-xs text-muted-foreground hover:text-white transition-colors"
+                            >
+                                Clear
+                            </button>
+                        </div>
+                        <button
+                            onClick={() => setIsCompareOpen(true)}
+                            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-black px-4 py-2 rounded-full text-sm font-bold transition-colors shadow-[0_0_15px_rgba(34,197,94,0.4)]"
+                        >
+                            <Scale size={16} /> Compare
+                        </button>
                     </motion.div>
                 )}
             </AnimatePresence>
