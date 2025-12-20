@@ -6,7 +6,7 @@ import NetworkBackground from './NetworkBackground';
 import useSWR from 'swr';
 import { Loader2, RefreshCw, Server, Globe, HardDrive, Zap } from 'lucide-react';
 import { triggerUpdate } from '@/app/actions';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 
 const Map = dynamic(() => import('./Map'), {
@@ -22,11 +22,11 @@ function StatCard({ label, value, icon: Icon, color, delay }: any) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay }}
-      className="glass-card relative overflow-hidden rounded-2xl p-6"
+      className="glass-card relative overflow-hidden rounded-2xl p-6 border border-white/5 bg-black/40 backdrop-blur-xl"
     >
       <div className={`absolute -right-6 -top-6 h-24 w-24 rounded-full ${color} opacity-10 blur-2xl`} />
       <div className="flex items-center gap-4">
-        <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${color} bg-opacity-20 text-white`}>
+        <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${color} bg-opacity-20 text-white ring-1 ring-white/10`}>
           <Icon size={24} />
         </div>
         <div>
@@ -42,6 +42,11 @@ export default function Dashboard() {
   const { data: nodes, error, isLoading, mutate: mutateNodes } = useSWR('/api/nodes', fetcher);
   const { data: stats, mutate: mutateStats } = useSWR('/api/network-stats', fetcher);
   const [isUpdating, setIsUpdating] = useState(false);
+
+  useEffect(() => {
+    // Auto-refresh on mount (simulating cron for visitor-based updates)
+    handleRefresh();
+  }, []);
 
   const handleRefresh = async () => {
     setIsUpdating(true);
@@ -65,28 +70,28 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="relative min-h-screen">
+    <div className="relative min-h-screen selection:bg-primary/30">
       <NetworkBackground />
 
       <div className="container mx-auto space-y-8 p-6 lg:p-10">
 
-        {/* Helper Header */}
-        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+        {/* Header Section */}
+        <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end border-b border-white/5 pb-8">
           <div>
             <motion.h1
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="text-4xl font-black tracking-tighter text-white lg:text-5xl"
+              className="text-5xl font-black tracking-tighter text-white lg:text-7xl"
             >
-              XAND<span className="text-primary">SCAN</span>
+              XAND<span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-green-300">SCAN</span>
             </motion.h1>
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2 }}
-              className="mt-2 text-muted-foreground"
+              className="mt-2 text-lg text-muted-foreground max-w-lg"
             >
-              Real-time Decentralized Network Explorer
+              Advanced Decentralized Network Intelligence & Node Explorer
             </motion.p>
           </div>
 
@@ -94,11 +99,22 @@ export default function Dashboard() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
+            className="flex items-center gap-4"
           >
+            <div className="text-right hidden md:block">
+              <div className="text-xs text-muted-foreground uppercase tracking-wider">Network Status</div>
+              <div className="text-sm font-bold text-green-500 flex items-center justify-end gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
+                OPERATIONAL
+              </div>
+            </div>
             <button
               onClick={handleRefresh}
               disabled={isUpdating}
-              className="group flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-6 py-2.5 text-sm font-medium text-primary transition-all hover:bg-primary hover:text-black disabled:opacity-50"
+              className="group flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-6 py-3 text-sm font-bold text-primary transition-all hover:bg-primary hover:text-black disabled:opacity-50 hover:shadow-[0_0_20px_rgba(34,197,94,0.4)]"
             >
               <RefreshCw className={`h-4 w-4 ${isUpdating ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
               {isUpdating ? 'SYNCING...' : 'REFRESH DATA'}
@@ -106,58 +122,73 @@ export default function Dashboard() {
           </motion.div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            label="Total Nodes"
-            value={stats?.totalNodes || 0}
-            icon={Server}
-            color="bg-blue-500"
-            delay={0.1}
-          />
-          <StatCard
-            label="Active RPC"
-            value={stats?.activeRpcCount || 0}
-            icon={Zap}
-            color="bg-yellow-500"
-            delay={0.2}
-          />
-          <StatCard
-            label="Top Region"
-            value={stats?.topCountry || '-'}
-            icon={Globe}
-            color="bg-green-500"
-            delay={0.3}
-          />
-          <StatCard
-            label="Total Storage"
-            value={stats?.totalStorage ? (stats.totalStorage / 1024 / 1024 / 1024).toFixed(2) + ' GB' : '0 GB'}
-            icon={HardDrive}
-            color="bg-purple-500"
-            delay={0.4}
-          />
+        {/* Main Content Layout - Grid with Map on side */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+          {/* Left Column: Stats & Map (Takes 4 cols) */}
+          <div className="lg:col-span-4 space-y-6">
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 gap-4">
+              <StatCard
+                label="Total Nodes"
+                value={stats?.totalNodes || 0}
+                icon={Server}
+                color="bg-blue-500"
+                delay={0.1}
+              />
+              <StatCard
+                label="Active RPC"
+                value={stats?.activeRpcCount || 0}
+                icon={Zap}
+                color="bg-yellow-500"
+                delay={0.2}
+              />
+              <StatCard
+                label="Top Region"
+                value={stats?.topCountry || '-'}
+                icon={Globe}
+                color="bg-green-500"
+                delay={0.3}
+              />
+              <StatCard
+                label="Storage"
+                value={stats?.totalStorage ? (stats.totalStorage / 1024 / 1024 / 1024).toFixed(0) + ' GB' : '0 GB'}
+                icon={HardDrive}
+                color="bg-purple-500"
+                delay={0.4}
+              />
+            </div>
+
+            {/* Map Card */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="glass-card overflow-hidden rounded-2xl border border-white/5 bg-black/40 backdrop-blur-xl h-[300px] lg:h-[400px] relative group"
+            >
+              <div className="absolute top-4 left-4 z-10 px-3 py-1 bg-black/60 backdrop-blur rounded-full text-xs font-bold text-white border border-white/10 flex items-center gap-2">
+                <Globe size={12} className="text-primary" /> GLOBAL DISTRIBUTION
+              </div>
+              <div className="h-full w-full grayscale-[30%] group-hover:grayscale-0 transition-all duration-700">
+                <Map nodes={nodes || []} />
+              </div>
+            </motion.div>
+          </div>
+
+          {/* Right Column: Node Explorer (Takes 8 cols) */}
+          <div className="lg:col-span-8">
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.6 }}
+              className="h-full"
+            >
+              <NodesExplorer nodes={nodes || []} />
+            </motion.div>
+          </div>
+
         </div>
 
-        {/* Map Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="glass-card overflow-hidden rounded-2xl border border-white/5 p-1"
-        >
-          <div className="h-[400px] w-full rounded-xl overflow-hidden grayscale-[50%] hover:grayscale-0 transition-all duration-700">
-            <Map nodes={nodes || []} />
-          </div>
-        </motion.div>
-
-        {/* Nodes Explorer */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-        >
-          <NodesExplorer nodes={nodes || []} />
-        </motion.div>
       </div>
     </div>
   );

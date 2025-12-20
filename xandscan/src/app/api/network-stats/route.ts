@@ -40,8 +40,14 @@ export async function GET(request: Request) {
     const c = n.country || 'Unknown';
     countryCounts[c] = (countryCounts[c] || 0) + 1;
   });
-  
-  const topCountry = Object.entries(countryCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'Unknown';
+
+  // Filter out 'Unknown' for meaningful top country, unless no other data exists
+  const knownCountries = Object.entries(countryCounts).filter(([c]) => c !== 'Unknown');
+  const sortedCountries = knownCountries.length > 0
+    ? knownCountries.sort((a, b) => b[1] - a[1])
+    : Object.entries(countryCounts).sort((a, b) => b[1] - a[1]);
+
+  const topCountry = sortedCountries[0]?.[0] || 'Unknown';
 
   return NextResponse.json({
     totalNodes,
