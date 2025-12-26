@@ -169,12 +169,7 @@ export default function GlobeMap({ nodes }: { nodes: Node[] }) {
           </Popup>
         )}
       </Map>
-
-      {/* Overlay info */}
-      <div className="absolute bottom-4 left-4 rounded-lg bg-black/50 p-2 text-xs text-muted-foreground backdrop-blur-md border border-white/5 pointer-events-none">
-        Scroll to zoom • Drag to rotate globe
-      </div>
-
+   
       <div className="absolute bottom-12 right-2 z-10 w-32 rounded-xl border border-white/5 bg-black/90 backdrop-blur-xl p-2 shadow-2xl overflow-hidden">
         <div className="flex items-center gap-1.5 mb-2 px-0.5">
           <Globe className="w-2.5 h-2.5 text-primary animate-pulse" />

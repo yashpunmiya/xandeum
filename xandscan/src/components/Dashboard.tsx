@@ -4,10 +4,11 @@ import dynamic from 'next/dynamic';
 import NodesExplorer from './NodesExplorer';
 import NetworkBackground from './NetworkBackground';
 import useSWR from 'swr';
-import { Loader2, RefreshCw, Server, Globe, HardDrive, Zap, BookOpen } from 'lucide-react';
+import { Loader2, RefreshCw, Server, Globe, HardDrive, Zap, BookOpen, Info } from 'lucide-react';
 import { triggerUpdate } from '@/app/actions';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import InfoModal from './InfoModal';
 
 const Map = dynamic(() => import('./Map'), {
   ssr: false,
@@ -42,6 +43,7 @@ export default function Dashboard() {
   const { data: nodes, error, isLoading, mutate: mutateNodes } = useSWR('/api/nodes', fetcher);
   const { data: stats, mutate: mutateStats } = useSWR('/api/network-stats', fetcher);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
   useEffect(() => {
     // Auto-refresh on mount (simulating cron for visitor-based updates)
@@ -111,6 +113,15 @@ export default function Dashboard() {
                 OPERATIONAL
               </div>
             </div>
+
+            <button
+              onClick={() => setIsInfoModalOpen(true)}
+              className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-bold text-white transition-all hover:bg-white/10 hover:border-white/20"
+            >
+              <Info className="h-4 w-4 text-primary" />
+              LEARN
+            </button>
+
             <a
               href="https://docs.xandeum.network/"
               target="_blank"
@@ -199,6 +210,11 @@ export default function Dashboard() {
         </div>
 
       </div>
+
+      <InfoModal
+        isOpen={isInfoModalOpen}
+        onClose={() => setIsInfoModalOpen(false)}
+      />
     </div>
   );
 }
