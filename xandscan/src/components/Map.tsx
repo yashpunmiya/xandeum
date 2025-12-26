@@ -5,9 +5,52 @@ import { Map, Source, Layer, Popup, Marker } from 'react-map-gl/mapbox';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Node } from '@/types';
-
+import { Globe } from 'lucide-react';
 
 const TOKEN = 'pk.eyJ1IjoieWFzaHB1bm1peWEiLCJhIjoiY21neGd5bGJzMDRzeDJsc2luNG05MXJ3ZiJ9.WZ1Cf-C37MJDCIUwIfszqw';
+
+// Helper for country mapping to flag codes
+const getCountryCode = (country: string) => {
+  const mapping: Record<string, string> = {
+    'United States': 'us',
+    'United Kingdom': 'gb',
+    'Germany': 'de',
+    'France': 'fr',
+    'Netherlands': 'nl',
+    'Canada': 'ca',
+    'China': 'cn',
+    'Japan': 'jp',
+    'Russia': 'ru',
+    'India': 'in',
+    'Brazil': 'br',
+    'Australia': 'au',
+    'Sweden': 'se',
+    'Norway': 'no',
+    'Finland': 'fi',
+    'Spain': 'es',
+    'Italy': 'it',
+    'Poland': 'pl',
+    'Singapore': 'sg',
+    'South Korea': 'kr',
+    'Switzerland': 'ch',
+    'Hong Kong': 'hk',
+    'Taiwan': 'tw',
+    'Israel': 'il',
+    'Ukraine': 'ua',
+    'Romania': 'ro',
+    'Austria': 'at',
+    'Belgium': 'be',
+    'Ireland': 'ie',
+    'New Zealand': 'nz',
+    'Denmark': 'dk',
+    'Portugal': 'pt',
+    'Czech Republic': 'cz',
+    'Turkey': 'tr',
+    'South Africa': 'za',
+    'Mexico': 'mx'
+  };
+  return mapping[country] || country.slice(0, 2).toLowerCase();
+};
 
 export default function GlobeMap({ nodes }: { nodes: Node[] }) {
   const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
@@ -128,8 +171,38 @@ export default function GlobeMap({ nodes }: { nodes: Node[] }) {
       </Map>
 
       {/* Overlay info */}
-      <div className="absolute bottom-4 left-4 rounded-lg bg-black/50 p-2 text-xs text-muted-foreground backdrop-blur-md border border-white/5">
+      <div className="absolute bottom-4 left-4 rounded-lg bg-black/50 p-2 text-xs text-muted-foreground backdrop-blur-md border border-white/5 pointer-events-none">
         Scroll to zoom • Drag to rotate globe
+      </div>
+
+      <div className="absolute bottom-12 right-2 z-10 w-32 rounded-xl border border-white/5 bg-black/90 backdrop-blur-xl p-2 shadow-2xl overflow-hidden">
+        <div className="flex items-center gap-1.5 mb-2 px-0.5">
+          <Globe className="w-2.5 h-2.5 text-primary animate-pulse" />
+          <h3 className="text-[9px] font-black text-white/70 uppercase tracking-widest">Global</h3>
+        </div>
+        
+        <div className="flex flex-col gap-0.5 max-h-[82px] overflow-y-auto pr-1 scrollbar-hide hover:scrollbar-default transition-all">
+          {Object.entries(countryCounts)
+            .sort(([, a], [, b]) => b - a)
+            .map(([country, count]) => (
+              <div key={country} className="flex items-center justify-between py-1 group cursor-default">
+                <div className="flex items-center gap-2 min-w-0">
+                  <img
+                    src={`https://flagcdn.com/w20/${getCountryCode(country)}.png`}
+                    alt={country}
+                    className="h-2 w-3 rounded-[1px] object-cover opacity-70 group-hover:opacity-100 transition-opacity"
+                    onError={(e) => { (e.target as HTMLImageElement).src = 'https://flagcdn.com/w20/un.png' }}
+                  />
+                  <span className="text-[10px] font-medium text-gray-500 group-hover:text-white transition-colors truncate" title={country}>
+                    {country}
+                  </span>
+                </div>
+                <div className="text-[10px] font-mono font-bold text-primary/70">
+                  {count}
+                </div>
+              </div>
+            ))}
+        </div>
       </div>
     </div>
   );

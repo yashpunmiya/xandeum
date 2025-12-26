@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import NodesExplorer from './NodesExplorer';
 import NetworkBackground from './NetworkBackground';
 import useSWR from 'swr';
-import { Loader2, RefreshCw, Server, Globe, HardDrive, Zap } from 'lucide-react';
+import { Loader2, RefreshCw, Server, Globe, HardDrive, Zap, BookOpen } from 'lucide-react';
 import { triggerUpdate } from '@/app/actions';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
@@ -111,6 +111,15 @@ export default function Dashboard() {
                 OPERATIONAL
               </div>
             </div>
+            <a
+              href="https://docs.xandeum.network/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-bold text-white transition-all hover:bg-white/10 hover:border-white/20"
+            >
+              <BookOpen className="h-4 w-4 text-muted-foreground" />
+              DOCS
+            </a>
             <button
               onClick={handleRefresh}
               disabled={isUpdating}
