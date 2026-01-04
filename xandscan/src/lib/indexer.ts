@@ -180,19 +180,41 @@ export async function updateNodes(network: 'mainnet' | 'devnet' = 'devnet') {
     console.log(`[INDEXER] Total nodes discovered: ${allNodes.length}`);
 
     // 2. ENRICHMENT (Credits & Country Stats)
-    console.log(`[INDEXER] Fetching credits data for ${network}...`);
+    // 2. ENRICHMENT (Credits & Country Stats)
+    console.log(`[INDEXER] Fetching credits data (Both Networks)...`);
     let creditsData: Record<string, number> = {};
+
     try {
-      const creditsUrl = network === 'devnet' ? DEVNET_CREDITS_URL : MAINNET_CREDITS_URL;
-      const creditsRes = await client.get(creditsUrl);
-      if (creditsRes.status === 200 && creditsRes.data?.pods_credits) {
-        creditsData = creditsRes.data.pods_credits.reduce((acc: any, item: any) => {
-          acc[item.pod_id] = item.credits;
-          return acc;
-        }, {});
-      }
+      // Fetch both in parallel
+      const [devnetRes, mainnetRes] = await Promise.allSettled([
+        client.get(DEVNET_CREDITS_URL),
+        client.get(MAINNET_CREDITS_URL)
+      ]);
+
+      const processCredits = (res: any) => {
+        if (res.status === 'fulfilled' && res.value?.status === 200 && res.value?.data?.pods_credits) {
+          return res.value.data.pods_credits;
+        }
+        return [];
+      };
+
+      const devnetCredits = processCredits(devnetRes);
+      const mainnetCredits = processCredits(mainnetRes);
+
+      const allCreditsRaw = [...devnetCredits, ...mainnetCredits];
+
+      // Merge: if duplicate, simple overwrite or max logic (though IDs should be unique per network ideally)
+      creditsData = allCreditsRaw.reduce((acc: any, item: any) => {
+        const existing = acc[item.pod_id] || 0;
+        // Take the larger value if duplicates exist
+        acc[item.pod_id] = Math.max(existing, item.credits || 0);
+        return acc;
+      }, {});
+
+      console.log(`[INDEXER] Credits loaded. Devnet: ${devnetCredits.length}, Mainnet: ${mainnetCredits.length}`);
+
     } catch (e) {
-      console.log(`[INDEXER] Failed to fetch credits data for ${network}`);
+      console.log(`[INDEXER] Failed to fetch credits data:`, e);
     }
 
     // Fetch existing country distribution for Decentralization Score
@@ -299,30 +321,44 @@ export async function updateNodes(network: 'mainnet' | 'devnet' = 'devnet') {
       } else {
         s_reliability = (uptimeDays / 7.0) * 100.0;
       }
-      // Fallback: If rpc_active but stats hidden (uptime 0?), give 20 pts? 
-      // User logic: "If node hides stats but was seen... gets 20". 
-      // We assume if uptime is 0, it's hidden or just started.
-      if (s_reliability === 0 && rpc_active) s_reliability = 20;
+      // Fallback: If node hides stats (no valid uptime) but was seen via gossip (rpc_active flag or just existence here)
+      // We assume if uptime is 0 but we are processing it, it might be hiding stats.
+      // However, we only give 20 points if it's "active". 
+      // rpc_active is derived from (uptime > 0 || cpu > 0). If it hides stats, stats are null/0.
+      // So checking !rpc_active (or very low uptime) but it's in our list.
+      // The user specified: "If node hides stats but was seen... gets 20"
+      if (s_reliability === 0) {
+        s_reliability = 20.0;
+      }
 
       // B. Performance Score (RAM + Storage)
-      // RAM Target: 64GB
-      const ram_gb = (ram_total || 0) / 1073741824.0; // Bytes to GB
-      let ram_score = 0;
-      if (ram_gb >= 64.0) ram_score = 100.0;
-      else if (ram_gb <= 8.0) ram_score = 0.0;
-      else ram_score = (ram_gb / 64.0) * 100.0;
+      // Divisor: 1_000_000_000.0 (10^9) as per Rust spec
+      const GB_DIVISOR = 1_000_000_000.0;
 
-      // Storage Target: 1TB
-      const storage_gb = (storage_used || 0) / 1073741824.0; // Bytes to GB
+      // RAM Target: 64GB
+      const ram_gb = (ram_total || 0) / GB_DIVISOR;
+      let ram_score = 0;
+      if (ram_gb >= 64.0) {
+        ram_score = 100.0;
+      } else if (ram_gb <= 8.0) {
+        ram_score = 0.0;
+      } else {
+        ram_score = (ram_gb / 64.0) * 100.0;
+      }
+
+      // Storage Target: 1000GB (1TB)
+      const storage_gb = (storage_used || 0) / GB_DIVISOR;
       let storage_score = 0;
-      // User code said: if storage_gb >= 1000.0 { 100.0 }
-      if (storage_gb >= 1000.0) storage_score = 100.0;
-      else storage_score = (storage_gb / 1000.0) * 100.0;
+      if (storage_gb >= 1000.0) {
+        storage_score = 100.0;
+      } else {
+        storage_score = (storage_gb / 1000.0) * 100.0;
+      }
 
       const s_performance = (ram_score * 0.5) + (storage_score * 0.5);
 
       // C. Decentralization Score (Geographic)
-      let s_decentralization = 100.0; // Default if country unknown/rare
+      let s_decentralization = 100.0;
       if (geo.country && geo.country !== 'Unknown' && totalNodesWithCountry > 0) {
         const count = countryCounts[geo.country] || 0;
         const concentration = count / totalNodesWithCountry;
