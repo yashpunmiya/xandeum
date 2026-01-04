@@ -126,10 +126,33 @@ async function getGeoData(ip: string) {
   return null;
 }
 
-// No longer relying on individual node RPC calls for stats if bulk fetch works
-// But kept for fallback if needed or specific detailed checks
-async function getRpcStats(ip: string, gossipPort: number) {
-  // ... (kept minimal or mapped)
+// Fetch individual node stats using get-stats RPC method
+// This returns CPU, RAM, and other detailed metrics for a specific node
+async function getNodeStats(ip: string, rpcPort: number = 6000) {
+  try {
+    const res = await client.post(`http://${ip}:${rpcPort}/rpc`, {
+      jsonrpc: "2.0",
+      method: "get-stats",
+      id: 1,
+      params: []
+    }, { timeout: 3000 });
+
+    if (res.status === 200 && res.data?.result) {
+      const stats = res.data.result;
+      return {
+        cpu_percent: stats.cpu_percent ?? 0,
+        ram_used: stats.ram_used ?? 0,
+        ram_total: stats.ram_total ?? 0,
+        uptime: stats.uptime ?? 0,
+        active_streams: stats.active_streams ?? 0,
+        packets_received: stats.packets_received ?? 0,
+        packets_sent: stats.packets_sent ?? 0
+      };
+    }
+  } catch (e: any) {
+    // Silent fail - node might be offline or not exposing stats
+    return null;
+  }
   return null;
 }
 
@@ -205,14 +228,30 @@ export async function updateNodes(network: 'mainnet' | 'devnet' = 'devnet') {
         return;
       }
 
-      // RPC is active if node has stats data (cpu, memory, uptime > 0)
-      const rpc_active = (cpu_percent !== null && cpu_percent !== undefined) || 
-                         (ram_used !== null && ram_used !== undefined && ram_used > 0) || 
-                         (uptime !== null && uptime !== undefined && uptime > 0);
+      // Try to fetch detailed stats from individual node if IP is available
+      let nodeStats = null;
+      if (ip) {
+        nodeStats = await getNodeStats(ip, rawNode.rpc_port || 6000);
+        if (nodeStats) {
+          // Override with actual stats from individual node RPC
+          node.cpu_percent = nodeStats.cpu_percent;
+          node.ram_used = nodeStats.ram_used;
+          node.ram_total = nodeStats.ram_total;
+          node.uptime = nodeStats.uptime;
+        }
+      }
+
+      const { cpu_percent: finalCpu, ram_used: finalRam, ram_total: finalRamTotal, uptime: finalUptime } = node;
+
+      // RPC is active if we got stats from individual node query OR from bulk data
+      const rpc_active = nodeStats !== null || 
+                         (finalCpu !== null && finalCpu !== undefined && finalCpu > 0) || 
+                         (finalRam !== null && finalRam !== undefined && finalRam > 0) || 
+                         (finalUptime !== null && finalUptime !== undefined && finalUptime > 0);
       
       // Debug log for first few nodes
       if (processedCount < 3) {
-        console.log(`[INDEXER] Node ${pubkey.substring(0, 8)}: cpu=${cpu_percent}, ram=${ram_used}/${ram_total}, uptime=${uptime}, rpc_active=${rpc_active}`);
+        console.log(`[INDEXER] Node ${pubkey.substring(0, 8)}: cpu=${finalCpu}, ram=${finalRam}/${finalRamTotal}, uptime=${finalUptime}, rpc_active=${rpc_active}${nodeStats ? ' (fetched)' : ' (from bulk)'}`);
       }
 
       // 2. Geo Data (Only if needed and safe)
@@ -251,14 +290,14 @@ export async function updateNodes(network: 'mainnet' | 'devnet' = 'devnet') {
       // 3. Prepare Data
       const credits = creditsData[pubkey] || 0;
 
-      // 4. Scoring - use the normalized data directly
+      // 4. Scoring - use the final values from node stats
       let score = 0;
       const scoreCredits = Math.min(100, credits / 1000); // 30%
       const scoreVersion = version === networkVersion ? 100 : 50; // 20%
 
       if (rpc_active) {
-        const scoreUptime = Math.min(100, (uptime || 0) / 3600); // 40%
-        const scoreResources = 100 - (cpu_percent || 0); // 10%
+        const scoreUptime = Math.min(100, (finalUptime || 0) / 3600); // 40%
+        const scoreResources = 100 - (finalCpu || 0); // 10%
         score = (scoreUptime * 0.4) + (scoreCredits * 0.3) + (scoreVersion * 0.2) + (scoreResources * 0.1);
       } else {
         score = (0 * 0.4) + (scoreCredits * 0.3) + (scoreVersion * 0.2) + (0 * 0.1);
@@ -280,19 +319,26 @@ export async function updateNodes(network: 'mainnet' | 'devnet' = 'devnet') {
 
       await supabase.from('nodes').upsert(nodeData);
 
-      // 6. DB Insert (Snapshot) - use normalized node data
-      await supabase.from('snapshots').insert({
+      // 6. DB Insert (Snapshot) - use final stats values
+      const snapshotData = {
         node_pubkey: pubkey,
         version,
         credits,
         rpc_active,
-        cpu_percent,
-        ram_used,
-        ram_total,
-        uptime_seconds: uptime,
+        cpu_percent: finalCpu,
+        ram_used: finalRam,
+        ram_total: finalRamTotal,
+        uptime_seconds: finalUptime,
         storage_used,
         total_score: score
-      });
+      };
+      
+      // Debug first few inserts
+      if (processedCount < 2) {
+        console.log(`[INDEXER] Inserting snapshot for ${pubkey.substring(0, 8)}:`, JSON.stringify(snapshotData, null, 2));
+      }
+      
+      await supabase.from('snapshots').insert(snapshotData);
 
       processedCount++;
       if (processedCount % 10 === 0) {

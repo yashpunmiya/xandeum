@@ -55,11 +55,17 @@ export async function GET(request: Request) {
   });
 
   const nodesWithStats = nodes.map(node => {
+    const latestSnapshot = snapshotMap.get(node.pubkey);
     return {
       ...node,
-      stats: snapshotMap.get(node.pubkey) || null
+      stats: latestSnapshot || null
     };
   });
+
+  // Debug: Log first node to see structure
+  if (nodesWithStats.length > 0) {
+    console.log('[API/nodes] Sample node with stats:', JSON.stringify(nodesWithStats[0], null, 2));
+  }
 
   // 4. Sort
   nodesWithStats.sort((a, b) => {
