@@ -9,6 +9,7 @@ import { triggerUpdate } from '@/app/actions';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import InfoModal from './InfoModal';
+import { useNetwork } from '@/lib/network-context';
 
 const Map = dynamic(() => import('./Map'), {
   ssr: false,
@@ -16,6 +17,14 @@ const Map = dynamic(() => import('./Map'), {
 });
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
+function formatBytes(bytes: number) {
+  if (!bytes) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
 
 function StatCard({ label, value, icon: Icon, color, delay }: any) {
   return (
@@ -40,20 +49,21 @@ function StatCard({ label, value, icon: Icon, color, delay }: any) {
 }
 
 export default function Dashboard() {
-  const { data: nodes, error, isLoading, mutate: mutateNodes } = useSWR('/api/nodes', fetcher);
-  const { data: stats, mutate: mutateStats } = useSWR('/api/network-stats', fetcher);
+  const { network, setNetwork } = useNetwork();
+  const { data: nodes, error, isLoading, mutate: mutateNodes } = useSWR(`/api/nodes?network=${network}`, fetcher);
+  const { data: stats, mutate: mutateStats } = useSWR(`/api/network-stats?network=${network}`, fetcher);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
   useEffect(() => {
-    // Auto-refresh on mount (simulating cron for visitor-based updates)
+    // Auto-refresh on mount or network change
     handleRefresh();
-  }, []);
+  }, [network]);
 
   const handleRefresh = async () => {
     setIsUpdating(true);
     try {
-      await triggerUpdate();
+      await triggerUpdate(network);
       mutateNodes();
       mutateStats();
     } catch (e) {
@@ -103,6 +113,21 @@ export default function Dashboard() {
             transition={{ delay: 0.3 }}
             className="flex items-center gap-4"
           >
+            <div className="flex items-center gap-2 bg-white/5 rounded-full p-1 border border-white/10">
+              <button
+                onClick={() => setNetwork('mainnet')}
+                className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${network === 'mainnet' ? 'bg-primary text-black shadow-[0_0_10px_rgba(34,197,94,0.4)]' : 'text-muted-foreground hover:text-white'}`}
+              >
+                MAINNET
+              </button>
+              <button
+                onClick={() => setNetwork('devnet')}
+                className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${network === 'devnet' ? 'bg-primary text-black shadow-[0_0_10px_rgba(34,197,94,0.4)]' : 'text-muted-foreground hover:text-white'}`}
+              >
+                DEVNET
+              </button>
+            </div>
+
             <div className="text-right hidden md:block">
               <div className="text-xs text-muted-foreground uppercase tracking-wider">Network Status</div>
               <div className="text-sm font-bold text-green-500 flex items-center justify-end gap-2">
@@ -172,7 +197,7 @@ export default function Dashboard() {
               />
               <StatCard
                 label="Storage"
-                value={stats?.totalStorage ? (stats.totalStorage / 1024 / 1024 / 1024).toFixed(0) + ' GB' : '0 GB'}
+                value={stats?.totalStorage ? formatBytes(stats.totalStorage) : '0 B'}
                 icon={HardDrive}
                 color="bg-purple-500"
                 delay={0.4}

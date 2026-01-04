@@ -13,30 +13,105 @@ const client = axios.create({
   timeout: 5000
 });
 
-const ENTRY_NODES = ["192.190.136.28", "192.190.136.36", "192.190.136.37", "192.190.136.38"];
+const DEVNET_ENTRY_NODES = ["89.123.115.81"];
+const MAINNET_ENTRY_NODES = [
+  "161.97.97.41",
+  "173.212.203.145",
+  "173.212.220.65",
+  "62.171.138.27",
+  "173.212.207.32",
+  "62.171.135.107",
+  "173.249.3.118"
+];
 const CONCURRENCY_LIMIT = 50;
 
-async function getPodsFromEntryNode(ip: string) {
+// Credits API URLs for different networks
+const DEVNET_CREDITS_URL = 'https://podcredits.xandeum.network/api/pods-credits';
+const MAINNET_CREDITS_URL = 'https://podcredits.xandeum.network/api/mainnet-pod-credits';
+
+// RPC Response Interface matching Xandash/Network
+interface PodWithStats {
+  pubkey: string;
+  id?: string; // Sometimes pubkey is returned as 'id'
+  address?: string;
+  ip?: string;
+  port?: number;
+  version?: string;
+  status?: string;
+  uptime?: number | string;
+  cpu?: number; // Field name from RPC
+  cpu_percent?: number;
+  memory?: number; // Field name from RPC
+  memory_used?: number;
+  memory_total?: number;
+  storage_committed?: number;
+  storage_used?: number;
+  is_public?: boolean;
+  last_seen_timestamp?: number;
+}
+
+// Helper to normalize stats from various RPC formats
+function normalizeNodeStats(node: any) {
+  // The RPC returns 'cpu' and 'memory', not 'cpu_percent' and 'memory_used'
+  // Xandash uses this same mapping
+  const cpu = node.cpu ?? node.cpu_percent ?? 0;
+  const memory = node.memory ?? node.memory_used ?? 0;
+  const memoryTotal = node.memory_total ?? (memory > 0 ? memory * 1.5 : 8589934592); // Default 8GB if unknown
+  
+  return {
+    cpu_percent: cpu,
+    ram_used: memory,
+    ram_total: memoryTotal,
+    uptime: typeof node.uptime === 'string' ? parseFloat(node.uptime) : (node.uptime || 0),
+    storage_used: node.storage_committed ?? node.storage_used ?? 0,
+    version: node.version || 'Unknown',
+    address: node.address || (node.ip ? `${node.ip}:${node.port || 6000}` : ''),
+    pubkey: node.id || node.pubkey || '',
+    status: node.status || 'unknown'
+  };
+}
+
+async function getNodesWithStatsFromEntry(ip: string) {
   const port = 6000;
   try {
-    console.log(`[INDEXER] Connecting to http://${ip}:${port}/rpc...`);
-    
+    console.log(`[INDEXER] Connecting to http://${ip}:${port}/rpc (get-pods-with-stats)...`);
+
+    // Try get-pods-with-stats first (Rich Data)
     const res = await client.post(`http://${ip}:${port}/rpc`, {
-      jsonrpc: "2.0", 
-      method: "get-pods", 
-      id: 1 
-    });
-    
-    if (res.status === 200) {
-      const data = res.data;
-      if (data.result && data.result.pods) {
-        console.log(`[INDEXER] Success! Found ${data.result.pods.length} pods.`);
-        return data.result.pods;
+      jsonrpc: "2.0",
+      method: "get-pods-with-stats",
+      id: 1
+    }, { timeout: 8000 });
+
+    if (res.status === 200 && res.data?.result?.pods) {
+      console.log(`[INDEXER] Success! Retrieved ${res.data.result.pods.length} pods with stats.`);
+      // Log first pod to see data structure
+      if (res.data.result.pods.length > 0) {
+        console.log(`[INDEXER] Sample pod data:`, JSON.stringify(res.data.result.pods[0], null, 2));
       }
+      return res.data.result.pods;
     }
   } catch (e: any) {
-    // console.log(`[INDEXER] Connection failed to ${ip}: ${e.message}`);
+    console.warn(`[INDEXER] Failed get-pods-with-stats from ${ip}: ${e.message}`);
   }
+
+  // Fallback to simple get-pods if stats fails
+  try {
+    console.log(`[INDEXER] Fallback: Connecting to http://${ip}:${port}/rpc (get-pods)...`);
+    const res = await client.post(`http://${ip}:${port}/rpc`, {
+      jsonrpc: "2.0",
+      method: "get-pods",
+      id: 1
+    }, { timeout: 5000 });
+
+    if (res.status === 200 && res.data?.result?.pods) {
+      console.log(`[INDEXER] Success! Retrieved ${res.data.result.pods.length} pods (basic).`);
+      return res.data.result.pods;
+    }
+  } catch (e: any) {
+    console.error(`[INDEXER] Failed get-pods from ${ip}: ${e.message}`);
+  }
+
   return null;
 }
 
@@ -51,40 +126,23 @@ async function getGeoData(ip: string) {
   return null;
 }
 
+// No longer relying on individual node RPC calls for stats if bulk fetch works
+// But kept for fallback if needed or specific detailed checks
 async function getRpcStats(ip: string, gossipPort: number) {
-  const ports = [6000, gossipPort];
-  // Filter out duplicates if gossipPort is 6000
-  const uniquePorts = [...new Set(ports)];
-  
-  for (const port of uniquePorts) {
-    try {
-      const res = await client.post(`http://${ip}:${port}/rpc`, {
-        jsonrpc: "2.0", 
-        method: "get-stats", 
-        id: 1 
-      }, {
-        timeout: 3000
-      });
-
-      if (res.status === 200) {
-        const data = res.data;
-        if (data.result) return data.result;
-      }
-    } catch (e) {
-      // Continue
-    }
-  }
+  // ... (kept minimal or mapped)
   return null;
 }
 
-export async function updateNodes() {
+export async function updateNodes(network: 'mainnet' | 'devnet' = 'devnet') {
   try {
-    console.log('[INDEXER] Starting node discovery...');
-    
-    // 1. DISCOVERY
+    console.log(`[INDEXER] Starting node discovery for ${network.toUpperCase()} via Bulk RPC...`);
+
+    // 1. DISCOVERY & STATS: Select Enty Nodes based on Network
+    const targetEntryNodes = network === 'devnet' ? DEVNET_ENTRY_NODES : MAINNET_ENTRY_NODES;
+
     let allNodes: any[] = [];
-    for (const entryIp of ENTRY_NODES) {
-      const nodes = await getPodsFromEntryNode(entryIp);
+    for (const entryIp of targetEntryNodes) {
+      const nodes = await getNodesWithStatsFromEntry(entryIp);
       if (nodes) {
         allNodes = nodes;
         break;
@@ -95,14 +153,18 @@ export async function updateNodes() {
       console.error('[INDEXER] No nodes found from any entry node');
       return { success: false, message: 'No nodes found' };
     }
-    
+
     console.log(`[INDEXER] Total nodes discovered: ${allNodes.length}`);
 
     // 2. ENRICHMENT (Credits)
-    console.log('[INDEXER] Fetching credits data...');
+    console.log(`[INDEXER] Fetching credits data for ${network}...`);
     let creditsData: Record<string, number> = {};
     try {
-      const creditsRes = await client.get('https://podcredits.xandeum.network/api/pods-credits');
+      const creditsUrl = network === 'devnet' ? DEVNET_CREDITS_URL : MAINNET_CREDITS_URL;
+      const creditsRes = await client.get(creditsUrl);
+
+      // Check response structure - user said "DevNet pod credits" link shows list
+      // Assuming standard structure { pods_credits: [...] }
       if (creditsRes.status === 200 && creditsRes.data?.pods_credits) {
         creditsData = creditsRes.data.pods_credits.reduce((acc: any, item: any) => {
           acc[item.pod_id] = item.credits;
@@ -110,34 +172,49 @@ export async function updateNodes() {
         }, {});
       }
     } catch (e) {
-      console.log('[INDEXER] Failed to fetch credits data');
+      console.log(`[INDEXER] Failed to fetch credits data for ${network}`);
     }
 
-    // Determine network version
-    const versions = allNodes.map(n => n.version).filter(Boolean);
+    // Determine network version (most common version)
+    const normalizedNodes = allNodes.map(normalizeNodeStats);
+    const versions = normalizedNodes.map(n => n.version).filter(v => v && v !== 'Unknown');
     const versionCounts = versions.reduce((acc: any, v: string) => {
       acc[v] = (acc[v] || 0) + 1;
       return acc;
     }, {});
-    const networkVersion = Object.keys(versionCounts).reduce((a, b) => (versionCounts[a] || 0) > (versionCounts[b] || 0) ? a : b, '');
+    
+    // Get the most common version
+    const networkVersion = Object.keys(versionCounts).length > 0
+      ? Object.keys(versionCounts).reduce((a, b) => (versionCounts[a] || 0) > (versionCounts[b] || 0) ? a : b, '')
+      : 'Unknown';
 
-    console.log(`[INDEXER] Network version: ${networkVersion}`);
+    console.log(`[INDEXER] Network version: ${networkVersion} (versions found: ${JSON.stringify(versionCounts)})`);
     console.log(`[INDEXER] Processing nodes with concurrency: ${CONCURRENCY_LIMIT}`);
 
     let processedCount = 0;
 
     // Worker function for a single node
-    const processNode = async (node: any) => {
-      const { pubkey, address, version } = node;
-      const ip = address ? address.split(':')[0] : null;
-      const gossipPort = address && address.includes(':') ? parseInt(address.split(':')[1]) : 6000;
-      
-      if (!ip || !pubkey) return;
+    const processNode = async (rawNode: any) => {
+      const node = normalizeNodeStats(rawNode);
+      const { pubkey, address, version, cpu_percent, ram_used, ram_total, uptime, storage_used } = node;
 
-      // 1. Get RPC Stats FIRST (Parallelizable)
-      const stats = await getRpcStats(ip, gossipPort);
-      const rpc_active = !!stats;
+      const ip = address ? address.split(':')[0] : null;
+
+      if (!ip || !pubkey) {
+        console.warn(`[INDEXER] Skipping node with missing ip or pubkey`);
+        return;
+      }
+
+      // RPC is active if node has stats data (cpu, memory, uptime > 0)
+      const rpc_active = (cpu_percent !== null && cpu_percent !== undefined) || 
+                         (ram_used !== null && ram_used !== undefined && ram_used > 0) || 
+                         (uptime !== null && uptime !== undefined && uptime > 0);
       
+      // Debug log for first few nodes
+      if (processedCount < 3) {
+        console.log(`[INDEXER] Node ${pubkey.substring(0, 8)}: cpu=${cpu_percent}, ram=${ram_used}/${ram_total}, uptime=${uptime}, rpc_active=${rpc_active}`);
+      }
+
       // 2. Geo Data (Only if needed and safe)
       // Check DB first
       const { data: existingNode } = await supabase
@@ -146,12 +223,13 @@ export async function updateNodes() {
         .eq('pubkey', pubkey)
         .single();
 
-      let geo = { 
-        lat: existingNode?.latitude || null, 
-        lon: existingNode?.longitude || null, 
-        country: existingNode?.country || 'Unknown', 
-        city: existingNode?.city || 'Unknown', 
-        isp: existingNode?.isp || null 
+
+      let geo = {
+        lat: existingNode?.latitude || null,
+        lon: existingNode?.longitude || null,
+        country: existingNode?.country || 'Unknown',
+        city: existingNode?.city || 'Unknown',
+        isp: existingNode?.isp || null
       };
 
       // Only fetch Geo if missing AND RPC is active (to save API calls/time)
@@ -172,28 +250,14 @@ export async function updateNodes() {
 
       // 3. Prepare Data
       const credits = creditsData[pubkey] || 0;
-      
-      let cpu_percent = null;
-      let ram_used = null;
-      let ram_total = null;
-      let uptime_seconds = null;
-      let storage_used = null;
 
-      if (stats) {
-        cpu_percent = stats.cpu_percent;
-        ram_used = stats.ram_used;
-        ram_total = stats.ram_total;
-        uptime_seconds = stats.uptime;
-        storage_used = stats.file_size;
-      }
-
-      // 4. Scoring
+      // 4. Scoring - use the normalized data directly
       let score = 0;
       const scoreCredits = Math.min(100, credits / 1000); // 30%
       const scoreVersion = version === networkVersion ? 100 : 50; // 20%
-      
+
       if (rpc_active) {
-        const scoreUptime = Math.min(100, (uptime_seconds || 0) / 3600); // 40%
+        const scoreUptime = Math.min(100, (uptime || 0) / 3600); // 40%
         const scoreResources = 100 - (cpu_percent || 0); // 10%
         score = (scoreUptime * 0.4) + (scoreCredits * 0.3) + (scoreVersion * 0.2) + (scoreResources * 0.1);
       } else {
@@ -207,16 +271,16 @@ export async function updateNodes() {
         last_seen_at: new Date().toISOString(),
         is_active: true // We found it in gossip, so it's "active" in the network sense, even if RPC is down
       };
-      
+
       if (geo.lat !== null) nodeData.latitude = geo.lat;
       if (geo.lon !== null) nodeData.longitude = geo.lon;
       if (geo.country) nodeData.country = geo.country;
       if (geo.city) nodeData.city = geo.city;
       if (geo.isp) nodeData.isp = geo.isp;
-      
+
       await supabase.from('nodes').upsert(nodeData);
 
-      // 6. DB Insert (Snapshot)
+      // 6. DB Insert (Snapshot) - use normalized node data
       await supabase.from('snapshots').insert({
         node_pubkey: pubkey,
         version,
@@ -225,7 +289,7 @@ export async function updateNodes() {
         cpu_percent,
         ram_used,
         ram_total,
-        uptime_seconds,
+        uptime_seconds: uptime,
         storage_used,
         total_score: score
       });
@@ -245,14 +309,14 @@ export async function updateNodes() {
         console.error(`[INDEXER] Error processing node ${node.pubkey}:`, err);
         workers.delete(worker);
       });
-      
+
       workers.add(worker);
-      
+
       if (workers.size >= CONCURRENCY_LIMIT) {
         await Promise.race(workers);
       }
     }
-    
+
     await Promise.all(workers);
 
     console.log(`[INDEXER] Successfully processed ${processedCount} nodes`);

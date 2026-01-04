@@ -9,11 +9,14 @@ export async function GET(request: Request) {
     return new NextResponse('Unauthorized', { status: 401 });
   }
 
-  const result = await updateNodes();
+  const { searchParams } = new URL(request.url);
+  const network = (searchParams.get('network') || 'devnet') as 'mainnet' | 'devnet';
+
+  const result = await updateNodes(network);
   
   if (!result.success) {
     return NextResponse.json({ error: result.error || result.message }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, processed: result.processed });
+  return NextResponse.json({ success: true, processed: result.processed, network });
 }

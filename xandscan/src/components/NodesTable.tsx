@@ -72,6 +72,22 @@ export default function NodesTable({ nodes }: { nodes: any[] }) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
+  const formatUptime = (seconds: number) => {
+    if (!seconds || seconds <= 0) return '-';
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    
+    if (days > 0) return `${days}d ${hours}h`;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
+  };
+
+  const formatPercentage = (value: number) => {
+    if (value === null || value === undefined) return '-';
+    return `${value.toFixed(1)}%`;
+  };
+
   const formatTimeAgo = (dateString: string) => {
     if (!dateString) return '-';
     const date = new Date(dateString);

@@ -4,7 +4,7 @@ import { updateNodes } from '@/lib/indexer';
 
 import { supabase } from '@/lib/supabase';
 
-export async function triggerUpdate() {
+export async function triggerUpdate(network: 'mainnet' | 'devnet' = 'devnet') {
   // Check last update time to prevent abuse/overloading
   try {
     const { data: latestSnapshot } = await supabase
@@ -28,6 +28,6 @@ export async function triggerUpdate() {
     // Proceed if check fails (safeguard)
   }
 
-  const result = await updateNodes();
+  const result = await updateNodes(network);
   return result;
 }
