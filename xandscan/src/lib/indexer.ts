@@ -248,8 +248,16 @@ export async function updateNodes(network: 'mainnet' | 'devnet' = 'devnet') {
       // Already normalized
       let { cpu_percent, ram_used, ram_total, uptime, storage_used } = node;
 
-      // If needed, fetch individual stats... (Skipping for brevity, assuming bulk has valid data or user accepts bulk)
-      // For ranking, we use what we have.
+      // Fetch individual stats (CPU, RAM) if IP is available
+      if (ip) {
+        const stats = await getNodeStats(ip);
+        if (stats) {
+          cpu_percent = stats.cpu_percent;
+          ram_used = stats.ram_used;
+          ram_total = stats.ram_total;
+          uptime = stats.uptime;
+        }
+      }
 
       const rpc_active = uptime > 0 || (cpu_percent && cpu_percent > 0);
 
@@ -355,10 +363,10 @@ export async function updateNodes(network: 'mainnet' | 'devnet' = 'devnet') {
         version,
         credits,
         rpc_active,
-        cpu_percent: node.cpu_percent,
-        ram_used: node.ram_used,
-        ram_total: node.ram_total,
-        uptime_seconds: node.uptime,
+        cpu_percent: cpu_percent,
+        ram_used: ram_used,
+        ram_total: ram_total,
+        uptime_seconds: uptime,
         storage_used,
         total_score: score
       };

@@ -28,6 +28,12 @@ export async function triggerUpdate(network: 'mainnet' | 'devnet' = 'devnet') {
     // Proceed if check fails (safeguard)
   }
 
-  const result = await updateNodes(network);
-  return result;
+  // Run for both networks to ensure complete view
+  const r1 = await updateNodes('devnet');
+  const r2 = await updateNodes('mainnet');
+
+  return {
+    success: r1.success || r2.success,
+    message: `Devnet: ${r1.processed || 0}, Mainnet: ${r2.processed || 0}`
+  };
 }
