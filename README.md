@@ -2,106 +2,83 @@
 
 ![Status](https://img.shields.io/badge/Network-Operational-green) ![Nodes](https://img.shields.io/badge/Nodes-Tracked-blue) ![License](https://img.shields.io/badge/License-MIT-purple)
 
-**XandScan** is a specialized analytics platform for the Xandeum pNode network. It aggregates, indexes, and visualizes real-time performance and geolocation data from distributed nodes, providing deep introspection into network health and decentralization metrics.
+**XandScan** is the official decentralized analytics platform for the Xandeum pNode network. It aggregates, indexes, and visualizes real-time performance and geolocation data from distributed nodes, while providing a suite of power-user tools for developers and storage providers.
 
 ---
 
-## 🛠️ Functional Capabilities & Data Telemetry
+## ⚡ Developer Nexus (New)
 
-XandScan goes beyond basic checking and provides a granular breakdown of every node in the network.
+A dedicated suite of utilities designed for node operators and ecosystem developers, accessible via the `NEXUS` portal.
 
-### 1. **Hardware & Resource Telemetry**
-We track detailed hardware utilization to ensure node operators are meeting SLA requirements:
-*   **CPU Load**: Real-time processor utilization percentages.
-*   **Memory (RAM)**: Exact usage vs. total available memory (GB), helping identify potential leaks or capacity bottlenecks.
-*   **Storage**: Disk usage tracking to monitor chain data growth.
-*   **Uptime**: Session uptime tracking to calculate stability scores (`uptime_seconds`).
+### 1. **MarketPulse 📈**
+Real-time financial intelligence for the Xand ecosystem.
+*   **Live Ticker**: Tracks Price, Volume, and Market Cap with instant updates.
+*   **Performance Metrics**: 24h, 7d, 30d, and 1y price performance analysis.
+*   **Tokenomics**: Circulating supply vs Max supply visualization and ATH comparisons.
+*   **Smart Links**: Quick copy for contract addresses and vetted social links.
 
-### 2. **Geospatial & Network Data**
-Understanding the physical decentralization of the network:
-*   **Identity**: Correlation of `Pubkey` with public `IP Address` and `Gossip/RPC Ports`.
-*   **Location**: Precise latitude/longitude coordinates, Country, and City mapping for every node.
-*   **ISP Attribution**: Identification of Internet Service Providers (ISP) to detect centralization risks (e.g., too many nodes on AWS vs. residential).
+### 2. **Network Diagnostics 🖥️**
+A CLI-style termination interface for verifying network integrity.
+*   **Endpoint Testing**: Test RPC methods (`get-version`, `get-stats`, `get-pods`) and API endpoints (`pod-credits`) in real-time.
+*   **Latency Tracking**: Millisecond-precision response time measurements.
+*   **Payload Inspector**: Drill down into raw JSON responses for debugging.
+*   **Status Codes**: Visual feedback for service availability and error states.
 
-### 3. **Economic & Trust Metrics**
-Data related to node incentives and reliability:
-*   **PodCredits**: Integration with the `podcredits` program to display earned rewards.
-*   **Trust Score Algorithm**: A composite 0-100 score calculated based on:
-    *   Uptime Consistency (40% Weight)
-    *   Credit Accumulation (30% Weight)
-    *   Version Compliance (20% Weight)
-    *   Resource Stability (10% Weight)
-*   **Version Compliance**: Tracking of `node_version` strings to ensure the fleet is running the latest consensus software.
+### 3. **Profit Simulator 💰**
+Advanced yield estimation engine for Storage Providers.
+*   **Geometric Mean Logic**: Implementing the precise reward formula: `(Storage^0.4) * (Stake^0.6) * Performance`.
+*   **Boost Modules**: Simulate the impact of **NFT Multipliers** (Gold, Platinum) and **Era Bonuses** (Genesis, Expansion).
+*   **Visual Projections**: Radial gauge visualization for epoch-based earnings with monthly/yearly extrapolations.
 
-### 4. **Deep-Dive Comparison Engine**
-A functional comparison tool for validators and delegators:
-*   **Multi-Select**: Select up to 4 distinct nodes for simultaneous analysis.
-*   **Metric Diffing**: Side-by-side view of:
-    *   *Efficiency*: Who runs the lowest CPU load?
-    *   *Yield*: Who has the highest credit accumulation?
-    *   *Stability*: Uptime comparison.
-*   **Auto-Highlighting**: The interface automatically calculates and badges the "Best in Class" metric (e.g., Highest Score) in the comparison table.
+---
 
-### 5. **Visitor-Driven Indexing (Serverless)**
-*   **Mechanism**: The platform utilizes a specialized serverless indexing pattern.
-*   **Trigger**: On every dashboard visit, the system checks the `snapshot` timestamp.
-*   **Action**: If data is stale (>5m), a background process polls known network entry points (`get-pods` RPC), enriches data with GeoIP, and updates the Supabase Store.
+## 🛠️ Core Capabilities & Telemetry
+
+### 1. **Smart Ranking Algorithm (v2)**
+A newly rebalanced scoring system to fairness and performance:
+*   **Performance (40%)**: Heavily weighted towards high RAM (>64GB) and Storage (>1TB).
+*   **Reliability (30%)**: Uses a **Square-Root Curve** (not linear), allowing new high-quality nodes to reach respectable scores in ~2 days while still rewarding long-term stability (7-day target).
+*   **Version (20%)**: Strict penalties for legacy software (`v0.x`), incentivizing upgrades to `v1.x`.
+*   **Decentralization (10%)**: Geographic scoring that penalizes ISP/Country concentration >30%.
+
+### 2. **Hardware & Resource Telemetry**
+*   **CPU Load**: Real-time processor utilization.
+*   **Memory & Storage**: Granular usage analysis.
+*   **Uptime**: Session uptime tracking with historic averaging.
+
+### 3. **Geospatial Intelligence**
+*   **Global Map**: Interactive real-time map of all active nodes.
+*   **Country Flags**: Automatic country code resolution for visual identity.
+*   **ISP Attribution**: Detects cloud provider concentration (AWS vs Residential).
+
+### 4. **Deep-Dive Comparison**
+*   **Multi-Select**: Compare up to 4 nodes side-by-side.
+*   **Metric Diffing**: Auto-highlighting of "Best in Class" specs.
 
 ---
 
 ## 💻 Technical Architecture
 
 *   **Frontend**: Next.js 15 (React 19, Server Actions)
-*   **Styling**: TailwindCSS, clsx, tailwind-merge
-*   **Visualization**:
-    *   *Maps*: Mapbox GL JS with custom `React-Map-GL` markers.
-    *   *Motion*: Framer Motion for transitons and layout animations.
+*   **Styling**: TailwindCSS, Framer Motion (Animations), Lucide React (Icons), Sonner (Toasts)
+*   **Visualization**: Mapbox GL JS, Custom SVG Gauges & Charts.
 *   **Data Store**: Supabase (PostgreSQL)
-    *   `nodes`: Identity & Static Info.
-    *   `snapshots`: Time-series data for metrics history.
+*   **Indexing**: Serverless "Visitor-Driven" indexing with background polling.
 
 ---
 
 ## 🚀 Deployment & Setup
 
 ### Environment Variables
-Required keys for deployment:
 ```bash
 NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN=pk.eyJ... # Mapbox Public Key
 NEXT_PUBLIC_SUPABASE_URL=...             # Supabase Project URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...        # Supabase Anon Key
 ```
 
-### Database Schema (Supabase)
-Run in SQL Editor:
-```sql
-create table nodes (
-  pubkey text primary key,
-  ip_address text,
-  country text,
-  city text,
-  isp text,
-  stats jsonb
-);
-
-create table snapshots (
-  id bigint generated by default as identity primary key,
-  node_pubkey text references nodes(pubkey),
-  created_at timestamptz default now(),
-  version text,
-  credits int,
-  cpu_percent float,
-  ram_used float,
-  ram_total float,
-  storage_used float,
-  uptime_seconds float,
-  total_score float
-);
-```
-
 ### Installation
 ```bash
-git clone https://github.com/yourusername/xandscan.git
+git clone https://github.com/xandeum/xandscan.git
 cd xandscan
 npm install
 npm run dev
