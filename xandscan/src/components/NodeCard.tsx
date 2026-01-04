@@ -6,6 +6,7 @@ import { Cpu, HardDrive, Zap, MapPin, Globe, Server, Activity, Coins, Eye, Troph
 import Link from 'next/link';
 import { useMemo } from 'react';
 import { cn } from '../lib/utils';
+import { getCountryCode, getFlagUrl } from '@/lib/country-utils';
 
 export default function NodeCard({ node, index, isSelected, isSelectionMode, onToggleSelect }: { node: Node; index: number; isSelected?: boolean; isSelectionMode?: boolean; onToggleSelect?: () => void }) {
     const stats = node.stats || {};
@@ -87,8 +88,16 @@ export default function NodeCard({ node, index, isSelected, isSelectionMode, onT
                             <div className="h-1.5 w-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse shrink-0" />
                         </Link>
                         <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                            <div className="flex items-center gap-1 min-w-0">
-                                <MapPin size={10} className="shrink-0" />
+                            <div className="flex items-center gap-1.5 min-w-0">
+                                {(() => {
+                                    const code = getCountryCode(node.country || '');
+                                    const flag = getFlagUrl(code);
+                                    return flag ? (
+                                        <img src={flag} alt={node.country} className="w-4 h-3 rounded-[2px]" />
+                                    ) : (
+                                        <MapPin size={10} className="shrink-0" />
+                                    );
+                                })()}
                                 <span className="truncate">{node.city || 'Unknown'}, {node.country}</span>
                             </div>
                         </div>

@@ -4,7 +4,8 @@ import dynamic from 'next/dynamic';
 import NodesExplorer from './NodesExplorer';
 import NetworkBackground from './NetworkBackground';
 import useSWR from 'swr';
-import { Loader2, RefreshCw, Server, Globe, HardDrive, Zap, BookOpen, Info } from 'lucide-react';
+import { Loader2, RefreshCw, Server, Globe, HardDrive, Zap, BookOpen, Info, Wrench } from 'lucide-react';
+import Link from 'next/link';
 import { triggerUpdate } from '@/app/actions';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
@@ -130,6 +131,19 @@ export default function Dashboard() {
               <Info className="h-4 w-4 text-primary" />
               LEARN
             </button>
+
+            <Link
+              href="/tools"
+              className="group relative flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-5 py-2 text-left transition-all hover:bg-white/10 hover:border-emerald-500/50 hover:shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500 ring-1 ring-emerald-500/20 group-hover:scale-110 transition-transform">
+                <Zap className="h-4 w-4 fill-current" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider group-hover:text-emerald-400">Utilities</span>
+                <span className="text-sm font-bold text-white leading-none">NEXUS</span>
+              </div>
+            </Link>
 
             <a
               href="https://docs.xandeum.network/"

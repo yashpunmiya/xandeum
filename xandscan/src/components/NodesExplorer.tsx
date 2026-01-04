@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getCountryCode, getFlagUrl } from '@/lib/country-utils';
+import { MapPin } from 'lucide-react';
 import {
     LayoutGrid,
     List,
@@ -282,7 +284,18 @@ export default function NodesExplorer({ nodes }: { nodes: Node[] }) {
                                             </div>
                                         </td>
                                         <td className="p-4 text-muted-foreground">
-                                            {node.country || 'Unknown'}
+                                            <div className="flex items-center gap-2">
+                                                {(() => {
+                                                    const code = getCountryCode(node.country || '');
+                                                    const flag = getFlagUrl(code);
+                                                    return flag ? (
+                                                        <img src={flag} alt={node.country} className="w-5 h-3.5 rounded-[2px] shadow-sm" />
+                                                    ) : (
+                                                        <MapPin size={14} className="opacity-50" />
+                                                    );
+                                                })()}
+                                                <span className="truncate max-w-[120px]" title={node.country || 'Unknown'}>{node.country || 'Unknown'}</span>
+                                            </div>
                                         </td>
                                         <td className="p-4 font-mono text-xs text-muted-foreground">
                                             <span className="bg-white/5 px-2 py-1 rounded border border-white/5">v{node.stats?.version || '0.0'}</span>
