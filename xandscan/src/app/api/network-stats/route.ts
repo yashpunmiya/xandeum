@@ -4,16 +4,17 @@ import { supabase } from '@/lib/supabase';
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const network = searchParams.get('network') || 'devnet';
-  
+
   // Total Nodes - use active window for current network
-  const activeWindow = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-  
+  // Total Nodes - fetch latest snapshots to determine active set
+  // We remove the 15m time window to show persistent data even if cron is delayed.
+
   // Get recent snapshots to identify active nodes
   const { data: recentSnapshots } = await supabase
     .from('snapshots')
     .select('rpc_active, storage_used, node_pubkey')
-    .gt('created_at', activeWindow)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(500);
 
   // Deduplicate to get unique nodes
   const uniquePubkeys = new Set(recentSnapshots?.map(s => s.node_pubkey) || []);

@@ -12,13 +12,14 @@ export async function GET(request: Request) {
 
   // 1. Fetch latest snapshots first (Active Window: 15 mins)
   // Filter by network by checking timestamps - recent data for selected network
-  const activeWindow = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+  // 1. Fetch latest snapshots (Limit to last 500 to ensure we get data even if cron stopped)
+  // We prioritize recent data by ordering, but don't hard-filter by time anymore.
 
   const { data: snapshots, error: snapError } = await supabase
     .from('snapshots')
     .select('*')
-    .gt('created_at', activeWindow)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(500);
 
   if (snapError) {
     return NextResponse.json({ error: snapError.message }, { status: 500 });
