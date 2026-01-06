@@ -2,13 +2,13 @@
 
 import { motion } from 'framer-motion';
 import { Node } from '@/types';
-import { Cpu, HardDrive, Zap, MapPin, Globe, Server, Activity, Coins, Eye, Trophy, MemoryStick, Clock, Check } from 'lucide-react';
+import { Cpu, HardDrive, Zap, MapPin, Globe, Server, Activity, Coins, Eye, Trophy, MemoryStick, Clock, Check, Star } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo } from 'react';
 import { cn } from '../lib/utils';
 import { getCountryCode, getFlagUrl } from '@/lib/country-utils';
 
-export default function NodeCard({ node, index, isSelected, isSelectionMode, onToggleSelect }: { node: Node; index: number; isSelected?: boolean; isSelectionMode?: boolean; onToggleSelect?: () => void }) {
+export default function NodeCard({ node, index, isSelected, isSelectionMode, onToggleSelect, isWatchlisted, onToggleWatchlist }: { node: Node; index: number; isSelected?: boolean; isSelectionMode?: boolean; onToggleSelect?: () => void; isWatchlisted?: boolean; onToggleWatchlist?: () => void }) {
     const stats = node.stats || {};
 
     // Formatters
@@ -61,7 +61,13 @@ export default function NodeCard({ node, index, isSelected, isSelectionMode, onT
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: index * 0.05 }}
             whileHover={{ y: -4, transition: { duration: 0.2 } }}
-            className={`group relative overflow-hidden rounded-md border text-left transition-all ${isSelected ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20' : 'border-white/5 bg-[#0a0a0a] hover:bg-[#0f0f0f]'}`}
+            className={`group relative overflow-hidden rounded-md border text-left transition-all 
+                ${isSelected
+                    ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20'
+                    : isWatchlisted
+                        ? 'border-yellow-500/30 bg-[#0a0a0a] shadow-[0_0_15px_rgba(234,179,8,0.1)]'
+                        : 'border-white/5 bg-[#0a0a0a] hover:bg-[#0f0f0f]'
+                }`}
         >
             {/* Top Accent Line */}
             <div className={`absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r ${accentColor} to-transparent opacity-70 group-hover:opacity-100 transition-opacity`} />
@@ -70,9 +76,17 @@ export default function NodeCard({ node, index, isSelected, isSelectionMode, onT
             {onToggleSelect && (
                 <button
                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleSelect(); }}
-                    className={`absolute top-2 right-2 z-40 h-5 w-5 rounded border flex items-center justify-center transition-all ${isSelected || isSelectionMode ? 'bg-primary border-primary opacity-100' : 'bg-black/50 border-white/20 opacity-0 group-hover:opacity-100'}`}
+                    className={`absolute top-2 right-2 z-40 h-8 w-8 rounded-lg border flex items-center justify-center transition-all duration-300 
+                        ${isSelected || isSelectionMode
+                            ? 'bg-primary border-primary opacity-100 shadow-[0_0_15px_rgba(34,197,94,0.6)] scale-100'
+                            : 'bg-black/40 border-white/10 opacity-0 group-hover:opacity-100 group-hover:border-primary/50 group-hover:shadow-[0_0_15px_rgba(34,197,94,0.4)] hover:!border-primary hover:!bg-primary/20 hover:!shadow-[0_0_20px_rgba(34,197,94,0.6)]'
+                        }`}
                 >
-                    {isSelected && <Check size={12} className="text-black font-bold" strokeWidth={4} />}
+                    {isSelected ? (
+                        <Check size={18} className="text-black font-extrabold" strokeWidth={4} />
+                    ) : (
+                        <div className="h-2 w-2 rounded-full bg-primary/30" />
+                    )}
                 </button>
             )}
 
@@ -80,25 +94,29 @@ export default function NodeCard({ node, index, isSelected, isSelectionMode, onT
 
                 {/* Header: Identity */}
                 <div className="flex justify-between items-start">
-                    <div className="flex-1 min-w-0 pr-2">
-                        <Link href={`/node/${node.pubkey}`} className="flex items-center gap-2 group-hover:text-primary transition-colors">
-                            <span className="font-mono text-sm font-bold text-white truncate cursor-pointer hover:underline underline-offset-4 decoration-primary/50">
-                                {node.pubkey.substring(0, 16)}...
-                            </span>
-                            <div className="h-1.5 w-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse shrink-0" />
-                        </Link>
-                        <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                                {(() => {
-                                    const code = getCountryCode(node.country || '');
-                                    const flag = getFlagUrl(code);
-                                    return flag ? (
-                                        <img src={flag} alt={node.country} className="w-4 h-3 rounded-[2px]" />
-                                    ) : (
-                                        <MapPin size={10} className="shrink-0" />
-                                    );
-                                })()}
-                                <span className="truncate">{node.city || 'Unknown'}, {node.country}</span>
+                    <div className="flex gap-3 flex-1 min-w-0 pr-2">
+
+
+                        <div className="min-w-0">
+                            <Link href={`/node/${node.pubkey}`} className="flex items-center gap-2 group-hover:text-primary transition-colors">
+                                <span className="font-mono text-sm font-bold text-white truncate cursor-pointer hover:underline underline-offset-4 decoration-primary/50">
+                                    {node.pubkey.substring(0, 16)}...
+                                </span>
+                                <div className="h-1.5 w-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse shrink-0" />
+                            </Link>
+                            <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                    {(() => {
+                                        const code = getCountryCode(node.country || '');
+                                        const flag = getFlagUrl(code);
+                                        return flag ? (
+                                            <img src={flag} alt={node.country} className="w-4 h-3 rounded-[2px]" />
+                                        ) : (
+                                            <MapPin size={10} className="shrink-0" />
+                                        );
+                                    })()}
+                                    <span className="truncate">{node.city || 'Unknown'}, {node.country}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -148,9 +166,26 @@ export default function NodeCard({ node, index, isSelected, isSelectionMode, onT
                         <span>Seen {formatTimeAgo(node.last_seen_at)}</span>
                     </div>
 
-                    <div className="flex items-center gap-1.5 bg-primary/10 px-2 py-0.5 rounded text-primary border border-primary/20">
-                        <Trophy size={10} />
-                        <span className="text-xs font-bold font-mono">{stats.total_score?.toFixed(0)}</span>
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1.5 bg-primary/10 px-2 py-0.5 rounded text-primary border border-primary/20">
+                            <Trophy size={10} />
+                            <span className="text-xs font-bold font-mono">{stats.total_score?.toFixed(0)}</span>
+                        </div>
+
+                        {/* Watchlist Star moved to Footer */}
+                        {onToggleWatchlist && (
+                            <button
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleWatchlist(); }}
+                                className={`relative z-30 p-1 rounded-full transition-all duration-300
+                                    ${isWatchlisted
+                                        ? 'text-yellow-500 scale-110 drop-shadow-[0_0_8px_rgba(234,179,8,0.5)]'
+                                        : 'text-muted-foreground/20 group-hover:text-yellow-500 group-hover:drop-shadow-[0_0_8px_rgba(234,179,8,0.5)] hover:bg-yellow-500/10 hover:!scale-125'
+                                    }`}
+                                title={isWatchlisted ? "Remove from Watchlist" : "Add to Watchlist"}
+                            >
+                                <Star size={18} fill={isWatchlisted ? "currentColor" : "none"} strokeWidth={isWatchlisted ? 0 : 2} />
+                            </button>
+                        )}
                     </div>
                 </div>
 

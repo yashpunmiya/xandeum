@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getCountryCode, getFlagUrl } from '@/lib/country-utils';
 import { MapPin } from 'lucide-react';
@@ -13,10 +14,12 @@ import {
     ArrowUpDown,
     Check,
     Scale,
-    X
+    X,
+    Star
 } from 'lucide-react';
 import NodeCard from './NodeCard';
 import CompareModal from './CompareModal';
+import WatchlistSidebar from './WatchlistSidebar';
 import { twMerge } from 'tailwind-merge';
 import { clsx } from 'clsx';
 import { Node } from '@/types';
@@ -56,6 +59,32 @@ export default function NodesExplorer({ nodes }: { nodes: Node[] }) {
     const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
     const [isCompareOpen, setIsCompareOpen] = useState(false);
     const [isSelectionMode, setIsSelectionMode] = useState(false);
+
+    // Watchlist State
+    const [watchlist, setWatchlist] = useState<string[]>([]);
+    const [isWatchlistOpen, setIsWatchlistOpen] = useState(false);
+
+    // Initial Load of Watchlist
+    useEffect(() => {
+        const saved = localStorage.getItem('xandscan_watchlist');
+        if (saved) {
+            try {
+                setWatchlist(JSON.parse(saved));
+            } catch (e) {
+                console.error("Failed to parse watchlist", e);
+            }
+        }
+    }, []);
+
+    const toggleWatchlist = (pubkey: string) => {
+        setWatchlist(prev => {
+            const next = prev.includes(pubkey)
+                ? prev.filter(id => id !== pubkey)
+                : [...prev, pubkey];
+            localStorage.setItem('xandscan_watchlist', JSON.stringify(next));
+            return next;
+        });
+    };
 
     const itemsPerPage = viewMode === 'grid' ? 12 : 20;
     const safeNodes = Array.isArray(nodes) ? nodes.filter(Boolean) : [];
@@ -160,6 +189,14 @@ export default function NodesExplorer({ nodes }: { nodes: Node[] }) {
                 nodes={getSelectedNodeObjects()}
             />
 
+            <WatchlistSidebar
+                isOpen={isWatchlistOpen}
+                onClose={() => setIsWatchlistOpen(false)}
+                watchedNodeIds={watchlist}
+                nodes={safeNodes}
+                onToggleWatchlist={toggleWatchlist}
+            />
+
             {/* Toolbar */}
             <div className="flex flex-col gap-4 rounded-xl border border-white/10 bg-[#0a0a0a] p-4 md:flex-row md:items-center md:justify-between shadow-2xl">
                 <div className="relative flex-1 max-w-sm">
@@ -174,6 +211,20 @@ export default function NodesExplorer({ nodes }: { nodes: Node[] }) {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
+                    {/* Watchlist Toggle */}
+                    <button
+                        onClick={() => setIsWatchlistOpen(true)}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10 hover:text-white transition-all shadow-sm"
+                    >
+                        <Star size={16} />
+                        <span className="hidden lg:inline">Watchlist</span>
+                        {watchlist.length > 0 && (
+                            <span className="bg-primary text-black text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
+                                {watchlist.length}
+                            </span>
+                        )}
+                    </button>
+
                     {/* Compare Toggle */}
                     <button
                         onClick={() => setIsSelectionMode(!isSelectionMode)}
@@ -244,6 +295,8 @@ export default function NodesExplorer({ nodes }: { nodes: Node[] }) {
                                 isSelected={selectedNodes.includes(node.pubkey)}
                                 isSelectionMode={isSelectionMode}
                                 onToggleSelect={() => toggleSelection(node.pubkey)}
+                                isWatchlisted={watchlist.includes(node.pubkey)}
+                                onToggleWatchlist={() => toggleWatchlist(node.pubkey)}
                             />
                         ))}
                     </motion.div>
@@ -256,6 +309,7 @@ export default function NodesExplorer({ nodes }: { nodes: Node[] }) {
                         <table className="w-full text-left text-sm min-w-[900px]">
                             <thead className="bg-white/5 text-xs uppercase tracking-wider text-muted-foreground font-medium border-b border-white/5">
                                 <tr>
+                                    <th className="p-4 w-10"></th> {/* Watchlist col */}
                                     <th className="p-4 w-10"></th> {/* Checkbox col */}
                                     <th className="p-4 cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('pubkey')}>Node</th>
                                     <th className="p-4 cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('country')}>Location</th>
@@ -270,6 +324,14 @@ export default function NodesExplorer({ nodes }: { nodes: Node[] }) {
                             <tbody className="divide-y divide-white/5">
                                 {paginatedNodes.map((node, i) => (
                                     <tr key={node.pubkey} className={cn("group transition-colors", selectedNodes.includes(node.pubkey) ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-white/5")}>
+                                        <td className="p-4 pr-0">
+                                            <button
+                                                onClick={() => toggleWatchlist(node.pubkey)}
+                                                className={cn("transition-all hover:scale-110", watchlist.includes(node.pubkey) ? "text-yellow-500" : "text-muted-foreground/20 hover:text-yellow-500")}
+                                            >
+                                                <Star size={16} fill={watchlist.includes(node.pubkey) ? "currentColor" : "none"} />
+                                            </button>
+                                        </td>
                                         <td className="p-4">
                                             <button
                                                 onClick={() => toggleSelection(node.pubkey)}
