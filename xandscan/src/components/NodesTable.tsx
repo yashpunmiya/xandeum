@@ -135,7 +135,7 @@ export default function NodesTable({ nodes }: { nodes: any[] }) {
               <th className="p-3 cursor-pointer hover:text-foreground" onClick={() => handleSort('ram_used')}>
                 <div className="flex items-center gap-1"><MemoryStick className="w-4 h-4" /> RAM</div>
               </th>
-              <th className="p-3 cursor-pointer hover:text-foreground" onClick={() => handleSort('storage_used')}>
+              <th className="p-3 cursor-pointer hover:text-foreground" onClick={() => handleSort('storage_committed')}>
                 <div className="flex items-center gap-1"><HardDrive className="w-4 h-4" /> Stor</div>
               </th>
               {/* <th className="p-3 cursor-pointer hover:text-foreground" onClick={() => handleSort('active_streams')}>
@@ -166,7 +166,7 @@ export default function NodesTable({ nodes }: { nodes: any[] }) {
               const cpu = stats.cpu_percent;
               const ramUsed = stats.ram_used;
               const ramTotal = stats.ram_total;
-              const storage = stats.storage_used;
+              const storage = stats.storage_committed || stats.storage_used;
               const credits = stats.credits;
               const score = stats.total_score;
               const version = stats.version;

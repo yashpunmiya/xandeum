@@ -124,7 +124,7 @@ export default function CompareModal({ isOpen, onClose, nodes }: CompareModalPro
             render: (n: Node) => (
                 <div className="w-full space-y-2">
                     <div className="flex justify-between text-xs">
-                        <span className="text-white font-mono">{formatBytes(n.stats?.storage_used || 0)}</span>
+                        <span className="text-white font-mono">{formatBytes(n.stats?.storage_committed || n.stats?.storage_used || 0)}</span>
                     </div>
                     <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
                         <div className="h-full bg-orange-500 rounded-full" style={{ width: '40%' }} />

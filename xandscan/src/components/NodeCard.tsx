@@ -2,13 +2,15 @@
 
 import { motion } from 'framer-motion';
 import { Node } from '@/types';
-import { Cpu, HardDrive, Zap, MapPin, Globe, Server, Activity, Coins, Eye, Trophy, MemoryStick, Clock, Check, Star } from 'lucide-react';
+import { Cpu, HardDrive, Zap, MapPin, Globe, Server, Activity, Coins, Eye, Trophy, MemoryStick, Clock, Check, Star, Radio } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo } from 'react';
 import { cn } from '../lib/utils';
 import { getCountryCode, getFlagUrl } from '@/lib/country-utils';
+import { useNetwork } from '@/lib/network-context';
 
 export default function NodeCard({ node, index, isSelected, isSelectionMode, onToggleSelect, isWatchlisted, onToggleWatchlist }: { node: Node; index: number; isSelected?: boolean; isSelectionMode?: boolean; onToggleSelect?: () => void; isWatchlisted?: boolean; onToggleWatchlist?: () => void }) {
+    const { isMainnet } = useNetwork();
     const stats = node.stats || {};
 
     // Formatters
@@ -121,9 +123,20 @@ export default function NodeCard({ node, index, isSelected, isSelectionMode, onT
                         </div>
                     </div>
 
-                    <div className="flex flex-col items-end gap-1">
-                        <div className="px-2 py-0.5 rounded-sm bg-white/5 border border-white/5 text-[10px] font-mono text-primary/80">
-                            v{stats.version || '0.0'}
+                    <div className="flex flex-col items-end gap-1.5">
+                        <div className="flex items-center gap-2">
+                             {/* Network Badge - Compact */}
+                            <div className={`px-1.5 py-0.5 rounded-[3px] text-[9px] font-bold uppercase tracking-wider flex items-center gap-1 ${
+                                isMainnet 
+                                    ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' 
+                                    : 'bg-green-500/10 text-green-400 border border-green-500/20'
+                            }`}>
+                                <Radio size={8} />
+                                {isMainnet ? 'MAIN' : 'DEV'}
+                            </div>
+                            <div className="px-1.5 py-0.5 rounded-[3px] bg-white/5 border border-white/5 text-[10px] font-mono text-primary/80">
+                                v{stats.version || '0.0'}
+                            </div>
                         </div>
                         <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                             <Clock size={10} />
@@ -149,7 +162,7 @@ export default function NodeCard({ node, index, isSelected, isSelectionMode, onT
                     {/* Storage */}
                     <div className="bg-[#0c0c0c] p-2 flex items-center justify-between group-hover:bg-[#111] transition-colors">
                         <div className="text-[10px] uppercase text-muted-foreground flex items-center gap-1"><HardDrive size={10} /> Stor</div>
-                        <div className="text-xs font-mono font-bold text-white">{formatBytes(stats.storage_used || 0)}</div>
+                        <div className="text-xs font-mono font-bold text-white">{formatBytes(stats.storage_committed || stats.storage_used || 0)}</div>
                     </div>
 
                     {/* Credits */}

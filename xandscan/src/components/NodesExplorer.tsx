@@ -198,8 +198,8 @@ export default function NodesExplorer({ nodes }: { nodes: Node[] }) {
             />
 
             {/* Toolbar */}
-            <div className="flex flex-col gap-4 rounded-xl border border-white/10 bg-[#0a0a0a] p-4 md:flex-row md:items-center md:justify-between shadow-2xl">
-                <div className="relative flex-1 max-w-sm">
+            <div className="flex flex-col gap-3 rounded-xl border border-white/10 bg-[#0a0a0a] p-3 md:flex-row md:items-center md:justify-between shadow-2xl">
+                <div className="relative flex-1 max-w-xs">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <input
                         type="text"
@@ -210,14 +210,14 @@ export default function NodesExplorer({ nodes }: { nodes: Node[] }) {
                     />
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-1.5">
                     {/* Watchlist Toggle */}
                     <button
                         onClick={() => setIsWatchlistOpen(true)}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10 hover:text-white transition-all shadow-sm"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10 hover:text-white transition-all shadow-sm text-xs"
                     >
-                        <Star size={16} />
-                        <span className="hidden lg:inline">Watchlist</span>
+                        <Star size={14} />
+                        <span className="hidden xl:inline">Watchlist</span>
                         {watchlist.length > 0 && (
                             <span className="bg-primary text-black text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
                                 {watchlist.length}
@@ -229,17 +229,18 @@ export default function NodesExplorer({ nodes }: { nodes: Node[] }) {
                     <button
                         onClick={() => setIsSelectionMode(!isSelectionMode)}
                         className={cn(
-                            "flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-bold transition-all shadow-sm mr-2",
+                            "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-all shadow-sm mr-1",
                             isSelectionMode || selectedNodes.length > 0
                                 ? "bg-primary text-black border-primary shadow-[0_0_10px_rgba(34,197,94,0.4)]"
                                 : "bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10 hover:text-white"
                         )}
                     >
-                        <Scale size={16} />
-                        {isSelectionMode ? 'Done' : 'Compare Nodes'}
+                        <Scale size={14} />
+                        <span className="hidden xl:inline">{isSelectionMode ? 'Done' : 'Compare'}</span>
+                        <span className="xl:hidden">{isSelectionMode ? 'Done' : 'Compare'}</span>
                     </button>
 
-                    <span className="text-xs text-muted-foreground font-medium mr-1 hidden lg:block">Sort by:</span>
+                    <span className="text-[11px] text-muted-foreground font-medium mr-0.5 hidden lg:block">Sort:</span>
                     {sortOptions.map(opt => (
                         <SortOption
                             key={opt.key}
@@ -250,9 +251,9 @@ export default function NodesExplorer({ nodes }: { nodes: Node[] }) {
                         />
                     ))}
 
-                    <div className="h-6 w-px bg-white/10 mx-2" />
+                    <div className="h-6 w-px bg-white/10 mx-1" />
 
-                    <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 p-1">
+                    <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 p-0.5">
                         <button
                             onClick={() => setViewMode('grid')}
                             className={cn("rounded-md p-1.5 transition-all", viewMode === 'grid' ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-white/5")}
@@ -317,7 +318,7 @@ export default function NodesExplorer({ nodes }: { nodes: Node[] }) {
                                     <th className="p-4 cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('uptime_seconds')}>Uptime</th>
                                     <th className="p-4 cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('cpu_percent')}>CPU</th>
                                     <th className="p-4 cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('ram_used')}>RAM</th>
-                                    <th className="p-4 cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('storage_used')}>Storage</th>
+                                    <th className="p-4 cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('storage_committed')}>Storage</th>
                                     <th className="p-4 cursor-pointer hover:text-white transition-colors text-right" onClick={() => handleSort('total_score')}>Score</th>
                                 </tr>
                             </thead>
@@ -372,7 +373,7 @@ export default function NodesExplorer({ nodes }: { nodes: Node[] }) {
                                             {formatBytes(node.stats?.ram_used || 0)}
                                         </td>
                                         <td className="p-4 text-xs font-mono text-muted-foreground">
-                                            {formatBytes(node.stats?.storage_used || 0)}
+                                            {formatBytes(node.stats?.storage_committed || node.stats?.storage_used || 0)}
                                         </td>
                                         <td className="p-4 text-right font-bold text-primary">
                                             {node.stats?.total_score?.toFixed(0)}

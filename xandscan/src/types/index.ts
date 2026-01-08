@@ -25,9 +25,13 @@ export interface Snapshot {
   ram_used: number | null;
   ram_total: number | null;
   uptime_seconds: number | null;
-  storage_used: number | null;
-  storage_total?: number | null;
+  storage_committed: number | null;  // Total allocated storage capacity
+  storage_used: number | null;        // Actually used storage
+  storage_usage_percent?: number;     // Usage percentage
   total_score: number;
+  network?: 'mainnet' | 'devnet';     // Network classification
+  is_mainnet?: boolean;                // Quick mainnet check
+  mainnet_credits?: number;            // Credits if mainnet node
 }
 
 export interface PodCreditsResponse {
@@ -48,6 +52,7 @@ export interface RpcStatsResponse {
   ram_used: number;
   ram_total: number;
   uptime_seconds: number;
+  storage_committed: number;  // Updated to use committed
   storage_used: number;
   version: string;
 }

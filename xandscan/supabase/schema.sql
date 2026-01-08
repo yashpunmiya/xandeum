@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS snapshots (
   -- Metadata
   version TEXT,
   credits INT DEFAULT 0,
+  network TEXT DEFAULT 'devnet',  -- Added: 'mainnet' or 'devnet'
   
   -- Performance Stats (Nullable because RPC might fail)
   rpc_active BOOLEAN DEFAULT FALSE,
@@ -35,7 +36,8 @@ CREATE TABLE IF NOT EXISTS snapshots (
   ram_used BIGINT,
   ram_total BIGINT,
   uptime_seconds BIGINT,
-  storage_used BIGINT,
+  storage_committed BIGINT,  -- Changed: Total allocated capacity
+  storage_used BIGINT,        -- Added: Actually used storage
   
   -- Calculated Score
   total_score FLOAT DEFAULT 0
@@ -45,3 +47,4 @@ CREATE TABLE IF NOT EXISTS snapshots (
 CREATE INDEX IF NOT EXISTS idx_snapshots_pubkey_time ON snapshots(node_pubkey, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_snapshots_created_at ON snapshots(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_snapshots_rpc_active ON snapshots(rpc_active);
+CREATE INDEX IF NOT EXISTS idx_snapshots_network ON snapshots(network);  -- Added: For network filtering

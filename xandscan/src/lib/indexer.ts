@@ -63,7 +63,8 @@ function normalizeNodeStats(node: any) {
         ram_used: memory,
         ram_total: memoryTotal,
         uptime: typeof node.uptime === 'string' ? parseFloat(node.uptime) : (node.uptime || 0),
-        storage_used: node.storage_committed ?? node.storage_used ?? 0,
+        storage_committed: node.storage_committed || 0,  // Total allocated capacity
+        storage_used: node.storage_used || 0,             // Actually used space
         version: node.version || 'Unknown',
         address: node.address || (node.ip ? `${node.ip}:${node.port || 6000}` : ''),
         pubkey: node.id || node.pubkey || '',
@@ -268,7 +269,7 @@ export async function updateNodes(network: 'mainnet' | 'devnet' = 'devnet') {
 
             // 1. Get Details (Simulated from Bulk or Individual)
             // Already normalized
-            let { cpu_percent, ram_used, ram_total, uptime, storage_used } = node;
+            let { cpu_percent, ram_used, ram_total, uptime, storage_committed, storage_used } = node;
 
             // Fetch individual stats (CPU, RAM) if IP is available
             if (ip) {
@@ -337,7 +338,7 @@ export async function updateNodes(network: 'mainnet' | 'devnet' = 'devnet') {
 
             // Storage Target: 1000GB (Standard)
             // Note: Massive storage (e.g. 16TB) hits 100 easily.
-            const storage_gb = (storage_used || 0) / GB_DIVISOR;
+            const storage_gb = (storage_committed || 0) / GB_DIVISOR;
             let storage_score = 0;
             if (storage_gb >= 1000.0) storage_score = 100.0;
             else storage_score = (storage_gb / 1000.0) * 100.0;
@@ -400,6 +401,7 @@ export async function updateNodes(network: 'mainnet' | 'devnet' = 'devnet') {
                 ram_used: ram_used,
                 ram_total: ram_total,
                 uptime_seconds: uptime,
+                storage_committed,
                 storage_used,
                 total_score: score
             };

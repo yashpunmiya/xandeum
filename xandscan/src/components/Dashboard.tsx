@@ -4,12 +4,13 @@ import dynamic from 'next/dynamic';
 import NodesExplorer from './NodesExplorer';
 import NetworkBackground from './NetworkBackground';
 import useSWR from 'swr';
-import { Loader2, RefreshCw, Server, Globe, HardDrive, Zap, BookOpen, Info, Wrench } from 'lucide-react';
+import { Loader2, RefreshCw, Server, Globe, HardDrive, Zap, BookOpen, Info, Wrench, Radio } from 'lucide-react';
 import Link from 'next/link';
 import { triggerUpdate } from '@/app/actions';
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import InfoModal from './InfoModal';
+import { useNetwork } from '@/lib/network-context';
 
 
 const Map = dynamic(() => import('./Map'), {
@@ -50,8 +51,9 @@ function StatCard({ label, value, icon: Icon, color, delay }: any) {
 }
 
 export default function Dashboard() {
-  const { data: nodes, error, isLoading, mutate: mutateNodes } = useSWR(`/api/nodes`, fetcher);
-  const { data: stats, mutate: mutateStats } = useSWR(`/api/network-stats`, fetcher);
+  const { network, setNetwork, isMainnet } = useNetwork();
+  const { data: nodes, error, isLoading, mutate: mutateNodes } = useSWR(`/api/nodes?network=${network}`, fetcher);
+  const { data: stats, mutate: mutateStats } = useSWR(`/api/network-stats?network=${network}`, fetcher);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
@@ -85,7 +87,7 @@ export default function Dashboard() {
     <div className="relative min-h-screen selection:bg-primary/30">
       <NetworkBackground />
 
-      <div className="container mx-auto space-y-8 p-6 lg:p-10">
+      <div className="container mx-auto space-y-8 px-6 lg:p-10">
 
         {/* Header Section */}
         <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end border-b border-white/5 pb-8">
@@ -113,16 +115,47 @@ export default function Dashboard() {
             transition={{ delay: 0.3 }}
             className="flex items-center gap-4"
           >
-            <div className="text-right hidden md:block">
-              <div className="text-xs text-muted-foreground uppercase tracking-wider">System Status</div>
-              <div className="text-sm font-bold text-green-500 flex items-center justify-end gap-2">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+            {/* Network Toggle */}
+            <div className="relative flex items-center gap-2 rounded-full border border-white/10 bg-black/40 backdrop-blur-xl p-1">
+              <button
+                onClick={() => setNetwork('devnet')}
+                className={`relative px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 ${
+                  !isMainnet
+                    ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 shadow-[0_0_15px_rgba(34,197,94,0.3)]'
+                    : 'text-muted-foreground hover:text-white'
+                }`}
+              >
+                <span className="relative z-10 flex items-center gap-2">
+                  {!isMainnet && (
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                  )}
+                  Devnet
                 </span>
-                ONLINE
-              </div>
+              </button>
+              <button
+                onClick={() => setNetwork('mainnet')}
+                className={`relative px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 ${
+                  isMainnet
+                    ? 'bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.3)]'
+                    : 'text-muted-foreground hover:text-white'
+                }`}
+              >
+                <span className="relative z-10 flex items-center gap-2">
+                  {isMainnet && (
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                    </span>
+                  )}
+                  Mainnet
+                </span>
+              </button>
             </div>
+
+            
 
             <button
               onClick={() => setIsInfoModalOpen(true)}
@@ -160,10 +193,10 @@ export default function Dashboard() {
               className="group flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-6 py-3 text-sm font-bold text-primary transition-all hover:bg-primary hover:text-black disabled:opacity-50 hover:shadow-[0_0_20px_rgba(34,197,94,0.4)]"
             >
               <RefreshCw className={`h-4 w-4 ${isUpdating ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
-              {isUpdating ? 'SYNCING...' : 'REFRESH DATA'}
+              {isUpdating ? 'SYNCING...' : 'REFRESH'}
             </button>
           </motion.div>
-        </div>
+        </div> 
 
         {/* Main Content Layout - Grid with Map on side */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

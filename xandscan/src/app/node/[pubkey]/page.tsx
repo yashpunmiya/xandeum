@@ -2,11 +2,13 @@
 
 import { useParams } from 'next/navigation';
 import useSWR from 'swr';
-import { Loader2, ArrowLeft, Cpu, HardDrive, Clock, Activity, Shield, Globe, Server, Share2 } from 'lucide-react';
+import { Loader2, ArrowLeft, Cpu, HardDrive, Clock, Activity, Shield, Globe, Server, Share2, Radio, Coins } from 'lucide-react';
 import Link from 'next/link';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { motion } from 'framer-motion';
 import NetworkBackground from '@/components/NetworkBackground';
+import { useNetwork } from '@/lib/network-context';
+import { getCountryCode, getFlagUrl } from '@/lib/country-utils';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -35,12 +37,19 @@ function DetailCard({ title, value, sub, icon: Icon, delay }: any) {
 export default function NodeDetails() {
   const params = useParams();
   const pubkey = params.pubkey as string;
+  const { network, isMainnet } = useNetwork();
 
-  const { data: nodes } = useSWR('/api/nodes', fetcher);
-  const { data: history, isLoading: historyLoading } = useSWR(pubkey ? `/api/nodes/${pubkey}/history` : null, fetcher);
+  const { data: nodes } = useSWR(`/api/nodes?network=${network}`, fetcher);
+  const { data: historyData, isLoading: historyLoading } = useSWR(pubkey ? `/api/nodes/${pubkey}/history` : null, fetcher);
 
   const node = nodes?.find((n: any) => n.pubkey === pubkey);
   const stats = node?.stats || {};
+  const history = historyData?.snapshots || [];
+  const historyMeta = {
+    count: historyData?.count || 0,
+    oldest: historyData?.oldest,
+    latest: historyData?.latest
+  };
 
   if (!node && !historyLoading) return <div className="p-8 text-center text-red-500">Node not found</div>;
   if (!node || historyLoading) return (
@@ -80,13 +89,17 @@ export default function NodeDetails() {
             className="flex items-center gap-6"
           >
             <div className="relative h-24 w-24 overflow-hidden rounded-2xl bg-white/5 ring-1 ring-white/10 shadow-2xl">
-              {node.country !== 'Unknown' && (
-                <img
-                  src={`https://flagcdn.com/h240/${node.country.toLowerCase()}.png`}
-                  alt={node.country}
-                  className="h-full w-full object-cover opacity-80"
-                />
-              )}
+              {(() => {
+                const countryCode = getCountryCode(node.country || '');
+                const flagUrl = countryCode ? `https://flagcdn.com/h240/${countryCode}.png` : null;
+                return flagUrl ? (
+                  <img
+                    src={flagUrl}
+                    alt={node.country}
+                    className="h-full w-full object-cover opacity-80"
+                  />
+                ) : null;
+              })()}
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
               <div className="absolute bottom-2 left-2 right-2 text-center text-xs font-bold uppercase tracking-widest text-white">
                 {node.country}
@@ -96,6 +109,15 @@ export default function NodeDetails() {
               <div className="flex items-center gap-3 mb-1">
                 <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight">Node Delta</h1>
                 <div className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-500/20 text-green-500 border border-green-500/30">ONLINE</div>
+                {/* Network Badge */}
+                <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+                  isMainnet 
+                    ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.3)]' 
+                    : 'bg-green-500/20 text-green-400 border border-green-500/30 shadow-[0_0_10px_rgba(34,197,94,0.3)]'
+                }`}>
+                  <Radio size={10} />
+                  {isMainnet ? 'MAINNET' : 'DEVNET'}
+                </div>
               </div>
               <div className="font-mono text-sm text-muted-foreground flex items-center gap-6">
                 <span className="flex items-center gap-2"><Server size={14} /> {node.ip_address}</span>
@@ -140,8 +162,8 @@ export default function NodeDetails() {
           />
           <DetailCard
             title="Storage"
-            value={(stats.storage_used ? (stats.storage_used / 1024 / 1024 / 1024).toFixed(0) : 0) + ' GB'}
-            sub="Total Volume Used"
+            value={((stats.storage_committed || stats.storage_used) ? ((stats.storage_committed || stats.storage_used) / 1024 / 1024 / 1024).toFixed(0) : 0) + ' GB'}
+            sub="Storage Committed"
             icon={HardDrive}
             delay={0.5}
           />
@@ -163,9 +185,16 @@ export default function NodeDetails() {
             transition={{ delay: 0.7 }}
             className="h-[400px] rounded-2xl border border-white/5 bg-black/40 p-6 backdrop-blur-md"
           >
-            <h3 className="mb-6 flex items-center gap-2 text-lg font-semibold text-white">
-              <Activity className="text-primary" size={20} /> Performance History
-            </h3>
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
+                <Activity className="text-primary" size={20} /> Performance History
+              </h3>
+              {historyMeta.oldest && (
+                <div className="text-xs text-muted-foreground font-mono">
+                  {historyMeta.count} snapshots • {Math.round((new Date(historyMeta.latest).getTime() - new Date(historyMeta.oldest).getTime()) / (1000 * 60 * 60 * 24))} days
+                </div>
+              )}
+            </div>
             <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={history}>
@@ -209,19 +238,32 @@ export default function NodeDetails() {
             </div>
           </motion.div>
 
-          {/* Uptime / Reliability Chart */}
+          {/* Credits History Chart */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.8 }}
             className="h-[400px] rounded-2xl border border-white/5 bg-black/40 p-6 backdrop-blur-md"
           >
-            <h3 className="mb-6 flex items-center gap-2 text-lg font-semibold text-white">
-              <Shield className="text-blue-500" size={20} /> Reliability Metric
-            </h3>
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
+                <Coins className="text-yellow-500" size={20} /> Credits History
+              </h3>
+              {historyMeta.oldest && (
+                <div className="text-xs text-muted-foreground font-mono">
+                  All-time data
+                </div>
+              )}
+            </div>
             <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={history}>
+                <AreaChart data={history}>
+                  <defs>
+                    <linearGradient id="colorCredits" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#eab308" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#eab308" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                   <XAxis
                     dataKey="created_at"
@@ -237,20 +279,22 @@ export default function NodeDetails() {
                     tick={{ fontSize: 12 }}
                     tickLine={false}
                     axisLine={false}
-                    domain={['auto', 'auto']}
+                    tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(1)}k` : v.toString()}
                   />
                   <Tooltip
                     contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '8px' }}
                     itemStyle={{ color: '#fff' }}
+                    formatter={(value: any) => [value >= 1000 ? `${(value/1000).toFixed(2)}k` : value, 'Credits']}
                   />
-                  <Line
-                    type="step"
-                    dataKey="uptime_seconds"
-                    stroke="#3b82f6"
+                  <Area
+                    type="monotone"
+                    dataKey="credits"
+                    stroke="#eab308"
                     strokeWidth={2}
-                    dot={false}
+                    fillOpacity={1}
+                    fill="url(#colorCredits)"
                   />
-                </LineChart>
+                </AreaChart>
               </ResponsiveContainer>
             </div>
           </motion.div>

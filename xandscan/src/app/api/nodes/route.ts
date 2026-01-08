@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { fetchMainnetPubkeys } from '@/lib/services/mainnet-filter-service';
 
 export const dynamic = 'force-dynamic'; // Ensure no caching
 
@@ -55,13 +56,19 @@ export async function GET(request: Request) {
     }
   });
 
-  const nodesWithStats = nodes.map(node => {
+  let nodesWithStats = nodes.map(node => {
     const latestSnapshot = snapshotMap.get(node.pubkey);
     return {
       ...node,
       stats: latestSnapshot || null
     };
   });
+
+  // Filter by network if mainnet
+  if (network === 'mainnet') {
+    const mainnetPubkeys = await fetchMainnetPubkeys();
+    nodesWithStats = nodesWithStats.filter(node => mainnetPubkeys.has(node.pubkey));
+  }
 
   // Debug: Log first node to see structure
   if (nodesWithStats.length > 0) {

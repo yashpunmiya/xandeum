@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { fetchMainnetPubkeys, filterMainnetNodes } from '@/lib/services/mainnet-filter-service';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -9,12 +10,11 @@ export async function GET(request: Request) {
   // Total Nodes - fetch latest snapshots to determine active set
   // We remove the 15m time window to show persistent data even if cron is delayed.
 
-  // Get recent snapshots to identify active nodes
+  // Get recent snapshots to identify active nodes - NO LIMIT to get all nodes
   const { data: recentSnapshots } = await supabase
     .from('snapshots')
-    .select('rpc_active, storage_used, node_pubkey')
-    .order('created_at', { ascending: false })
-    .limit(500);
+    .select('rpc_active, storage_committed, storage_used, node_pubkey')
+    .order('created_at', { ascending: false });
 
   // Deduplicate to get unique nodes
   const uniquePubkeys = new Set(recentSnapshots?.map(s => s.node_pubkey) || []);
@@ -28,8 +28,19 @@ export async function GET(request: Request) {
     }
   });
 
-  const activeRpcCount = Array.from(latestSnapshotsMap.values()).filter(s => s.rpc_active).length;
-  const totalStorage = Array.from(latestSnapshotsMap.values()).reduce((acc, s) => acc + (s.storage_used || 0), 0);
+  // Filter by network if mainnet
+  let latestSnapshots = Array.from(latestSnapshotsMap.values());
+  if (network === 'mainnet') {
+    const mainnetPubkeys = await fetchMainnetPubkeys();
+    latestSnapshots = latestSnapshots.filter(s => mainnetPubkeys.has(s.node_pubkey));
+  }
+
+  const activeRpcCount = latestSnapshots.filter(s => s.rpc_active).length;
+  // Use storage_committed if available, fallback to storage_used
+  const totalStorage = latestSnapshots.reduce((acc, s) => {
+    const storage = s.storage_committed || s.storage_used || 0;
+    return acc + storage;
+  }, 0);
 
   // Top Country - get from nodes table for active pubkeys
   const { data: nodes } = await supabase
